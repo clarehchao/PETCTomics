@@ -1,0 +1,13 @@
+*~
+*.pyc
+.idea/
+.DS_Store
+*.spyderproject
+Testing/
+brain/
+breast/
+her2/
+DB/
+Radiomics/Prediction_MRI.py
+Radiomics/Prediction_PET.py
+Radiomics/UnsupervisedML.py
