@@ -19,7 +19,6 @@ import dmi
 import image_geometry
 import numpy as np
 
-
 # take a look at the distribution of the texture features for different settings
 rootdir = '/data/francgrp1/clare_work/Data'
 feature_data_dir = '{}/her2_ImageFeatures'.format(rootdir)
@@ -105,7 +104,6 @@ dir_dict = {0:'R',1:'C',2:'S'}
 voxsize_df['direction'] = voxsize_df['direction_ii'].apply(lambda x: dir_dict[x])
 json_fname = '/data/francgrp1/clare_work/Data/her2_Analysis/DCEMRI_VoxelSize_all.json'
 voxsize_df.to_json(json_fname)
-
 
 # read in the voxsize json file
 json_fname = '/data/francgrp1/clare_work/Data/her2_Analysis/DCEMRI_VoxelSize_all.json'

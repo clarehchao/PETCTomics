@@ -80,13 +80,38 @@ if __name__ == '__main__':
     her2_outcome_df['Recurrence_Type'] = her2_outcome_df['Recurrence Type Summary'].map(recur_type_func)
 
 
-    the_outcome_df = her2_outcome_df.loc[:, ['MRN', 'Recurrence_CR','Recurrence_Type']]
+    # catergorize tumor and lymph node stages
+    def Tstage_func(x):
+        tstage_list = ['T0','Tis','T1mic','T1','T1a','T1b','T1c','T2','T3','T4','T4a','T4b','T4c','T4d','TX','calc']
+        tstage_dict = dict(zip(tstage_list,range(len(tstage_list))))
+        tstage_dict['T2yp'] = 7  # this is the exception for T2, not sure what T2yp is but assume it's the same as T2
+        if x in tstage_dict.keys():
+            return tstage_dict[x]
+        elif x.lower() == 'calc':
+            return tstage_dict['calc']
+        else:
+            return np.nan
+    her2_outcome_df['Tstage'] = her2_outcome_df['T-stage at surgery'].map(Tstage_func)
+
+    def Nstage_func(x):
+        nstage_list = ['N0','N1','N2a','N2b','N3a','N3b','N3c','NX','N3a','calc']
+        nstage_dict = dict(zip(nstage_list, range(len(nstage_list))))
+        if x in nstage_dict.keys():
+            return nstage_dict[x]
+        elif x.lower() == 'calc':
+            return nstage_dict['calc']
+        else:
+            return np.nan
+    her2_outcome_df['Nstage'] = her2_outcome_df['N-stage at surgery'].map(Nstage_func)
+
+    the_outcome_df = her2_outcome_df.loc[:, ['MRN', 'Recurrence_CR', 'Recurrence_Type','Nstage','Tstage']]
 
     # PET image feature data
     pet_dir = '{}/her2_Analysis/PET/IsoVoxel_IMGBIN128_GLCMBIN64'.format(rootdir)
     df_fname = '{}/PETdataAll_glcmNbin64_normNbin128.csv'.format(pet_dir)
     data_df = pd.read_csv(df_fname, dtype={'pt_mrn': str, 'PRIMARY_ID': str, 'MRN': str, 'Anon_Accession_Num': str})
     jdf = pd.merge(data_df,the_outcome_df,on='MRN')
+    print data_df.shape, jdf.shape
 
     dist_method_list = ['euclidean','spearman','pearson']
     cluster_method_dict = {'pam': None, 'km': None, 'kmdist': None,'hc':['centroid','median','average','mcquitty','complete']}
@@ -109,6 +134,7 @@ if __name__ == '__main__':
 
                     # combine the cs_class to the_df
                     the_df = pd.merge(jdf, cs_class_df, how='left', on='ptid_side')
+                    print the_df.shape
 
                     # find the N of the smallest cluster in each cluster result for future analysis
                     N_mincluster = the_df['cs_class'].value_counts().min()
@@ -127,6 +153,7 @@ if __name__ == '__main__':
 
                     # combine the cs_class to the_df
                     the_df = pd.merge(jdf, cs_class_df, how='left', on='ptid_side')
+                    print the_df.shape
 
                     # find the N of the smallest cluster in each cluster result for future analysis
                     N_mincluster = the_df['cs_class'].value_counts().min()
@@ -166,7 +193,7 @@ if __name__ == '__main__':
     #     data_df = pd.read_csv(df_fname, dtype={'PRIMARY_ID': str, 'MRN': str})
     #     jdf = pd.merge(data_df, the_outcome_df, on='MRN')
     #
-    #     for ncluster in range(3,theKmax+1):
+    #     for ncluster in range(2,theKmax+1):
     #         for k, val in cluster_method_dict.items():
     #             if val:
     #                 for ll,dd in itt.product(val,dist_method_list):

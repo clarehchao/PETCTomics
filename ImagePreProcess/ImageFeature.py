@@ -33,6 +33,8 @@ class ImageFeature:
         self._inputImageDimension = None
         self._maskImageType = None
         self._GLCM_feature_list = None
+        self._foutput_format = None
+        self._dict_feature_output = None
         self._df_feature_output = None
         self._inputpix_min = None
         self._inputpix_max = None
@@ -54,6 +56,9 @@ class ImageFeature:
                 #TODO: need to consider multiple VOIs or mask (or multi-value mask)
                 self._maskImage = args[2]
                 print 'mask image is defined!'
+                self._foutput_format = args[3]
+                print 'feature output format: {}'.format(self._foutput_format)
+
             self.get_image_info()
         else:
             print '::Oh NO O_O:: No itk image is defined and default texture feature list will be used!'
@@ -78,7 +83,12 @@ class ImageFeature:
 
     @property
     def feature_output(self):
-        return self._df_feature_output
+        if self._foutput_format == 'dict':
+            return self._dict_feature_output
+        elif self._foutput_format == 'df':
+            return self._df_feature_output
+        else:
+            print 'invalid feature output format'
 
     @property
     def glcm_Nbin(self):
@@ -130,7 +140,6 @@ class ImageFeature:
 
             connector = itk.PyBuffer[self._inputImageType]
             tmp = connector.GetArrayFromImage(self._cast_maskImage)
-
             self._maskImage_ndarray = np.zeros(tmp.shape)
             self._maskImage_ndarray[tmp != 0] = tmp[tmp != 0]
             self._inside_pixel_val = int(np.unique(self._maskImage_ndarray[np.nonzero(self._maskImage_ndarray)])[0])
@@ -177,7 +186,7 @@ class ImageFeature:
 
         self._GLCM = np.zeros((centerIndx,self._glcm_Nbin,self._glcm_Nbin))
         offset_list = []
-        dict_feature_output = []
+        dict_foutput_tmp = []
         for d in range(centerIndx):
             offset = neighborhood.GetOffset(d)
             offset_tuple = tuple([int(s) for s in tuple(offset)])
@@ -194,26 +203,42 @@ class ImageFeature:
                 thegtf = gtf.GLCMTextureFeature(self._GLCM[d], self._GLCM_feature_list)
             else:
                 thegtf.update_p_matrix(self._GLCM[d])
+
             thegtf.compute_features()
             thefeature = thegtf.feature_dict
 
             if d == 0:
-                dict_feature_output = thefeature
+                if self._foutput_format == 'df':
+                    dict_foutput_tmp = thefeature
+                elif self._foutput_format == 'dict':
+                    self._dict_feature_output = thefeature
             else:
                 # append features for each direction as a list
-                for k,val in thefeature.items():
-                    dict_feature_output[k].append(val[0])
+                if self._foutput_format == 'df':
+                    for k,val in thefeature.items():
+                        dict_foutput_tmp[k].append(val[0])
+                elif self._foutput_format == 'dict':
+                    for k, val in thefeature.items():
+                        self._dict_feature_output[k].append(val[0])
             # del thegtf
             # del thefeature
-        # add the offset list to the dictionary
-        dict_feature_output['glcm_offset'] = offset_list
+        if self._foutput_format == 'df':
+            # add the offset list to the dictionary
+            dict_foutput_tmp['glcm_offset'] = offset_list
 
-        # make sure the key string is prefixed with 'texture_' to distinguish from other features
-        for k,val in dict_feature_output.items():
-            new_k = 'texture_' + k
-            dict_feature_output[new_k] = dict_feature_output.pop(k)
+            # make sure the key string is prefixed with 'texture_' to distinguish from other features
+            for k,val in dict_foutput_tmp.items():
+                new_k = 'texture_' + k
+                dict_foutput_tmp[new_k] = dict_foutput_tmp.pop(k)
 
-        self._df_feature_output = pd.DataFrame(dict_feature_output)
+            # convert to pandas dataframe
+            self._df_feature_output = pd.DataFrame(dict_foutput_tmp)
+        elif self._foutput_format == 'dict':
+            self._dict_feature_output['glcm_offset'] = offset_list
+            # make sure the key string is prefixed with 'texture_' to distinguish from other features
+            for k, val in self._dict_feature_output.items():
+                new_k = 'texture_' + k
+                self._dict_feature_output[new_k] = self._dict_feature_output.pop(k)
 
         print '::ImageFeature:: complete compute_texture_features!'
 
@@ -225,7 +250,11 @@ class ImageFeature:
         vox_size_SRC = 0.1*np.array(self._IG.samplingSRC)  # unit: cm
         vox_vol = np.prod(vox_size_SRC) # unit: cm^
         vol_cm3 = np.sum(self._maskImage_ndarray)*vox_vol# unit: ml or cm^3
-        self._df_feature_output['ShapeSize_vol_cm3'] = vol_cm3
+        if self._foutput_format == 'df':
+            self._df_feature_output['ShapeSize_vol_cm3'] = vol_cm3
+        elif self._foutput_format == 'dict':
+            self._dict_feature_output['ShapeSize_vol_cm3'] = vol_cm3
+
 
         # mask surface area
         the_tumor_vol = np.zeros(self._inputImage_ndarray.shape)
@@ -233,11 +262,18 @@ class ImageFeature:
         verts, faces = skm.marching_cubes(the_tumor_vol, 0.0,tuple(vox_size_SRC))
         surf_area_cm2 = skm.mesh_surface_area(verts, faces) # unit: cm^2
 
-        self._df_feature_output['ShapeSize_surf_area_cm2'] = surf_area_cm2
-        self._df_feature_output['ShapeSize_compactness1'] = vol_cm3/(np.sqrt(np.pi)*surf_area_cm2**(2./3.))
-        self._df_feature_output['ShapeSize_compactness2'] = (36.*np.pi*vol_cm3**2)/(surf_area_cm2**3)
-        self._df_feature_output['ShapeSize_sphericity'] = (np.pi**(1./3.))*(6*vol_cm3)**(2./3.)/surf_area_cm2
-        self._df_feature_output['ShapeSize_surface2volratio'] = surf_area_cm2/vol_cm3
+        if self._foutput_format == 'df':
+            self._df_feature_output['ShapeSize_surf_area_cm2'] = surf_area_cm2
+            self._df_feature_output['ShapeSize_compactness1'] = vol_cm3/(np.sqrt(np.pi)*surf_area_cm2**(2./3.))
+            self._df_feature_output['ShapeSize_compactness2'] = (36.*np.pi*vol_cm3**2)/(surf_area_cm2**3)
+            self._df_feature_output['ShapeSize_sphericity'] = (np.pi**(1./3.))*(6*vol_cm3)**(2./3.)/surf_area_cm2
+            self._df_feature_output['ShapeSize_surface2volratio'] = surf_area_cm2/vol_cm3
+        elif self._foutput_format == 'dict':
+            self._dict_feature_output['ShapeSize_surf_area_cm2'] = surf_area_cm2
+            self._dict_feature_output['ShapeSize_compactness1'] = vol_cm3 / (np.sqrt(np.pi) * surf_area_cm2 ** (2. / 3.))
+            self._dict_feature_output['ShapeSize_compactness2'] = (36. * np.pi * vol_cm3 ** 2) / (surf_area_cm2 ** 3)
+            self._dict_feature_output['ShapeSize_sphericity'] = (np.pi ** (1. / 3.)) * (6 * vol_cm3) ** (2./3.)/surf_area_cm2
+            self._dict_feature_output['ShapeSize_surface2volratio'] = surf_area_cm2 / vol_cm3
 
         # maximum 3D euclidean distance (or diameter?)
         kk,ii,jj = np.where(self._maskImage_ndarray == True)
@@ -246,7 +282,7 @@ class ImageFeature:
         if len(kk) > 300000 and vol_cm3 > 70.:
             print '::ImageFeature:: compute_shape_size_feature, tumor mask is TOO big (vol: {} ml)! will not compute euc max distance :/'.format(vol_cm3)
         else:
-	    print '::ImageFeature:: max euc distance # of voxels to go through: {}, vol = {} cm3'.format(len(kk),vol_cm3)
+            print '::ImageFeature:: max euc distance # of voxels to go through: {}, vol = {} cm3'.format(len(kk),vol_cm3)
             eucdis_tmp = np.zeros((len(kk),1))
             for n in range(len(kk)-1):
                 px1 = np.column_stack((kk[n+1:],ii[n+1:],jj[n+1:]))
@@ -255,11 +291,17 @@ class ImageFeature:
                 eucdis = np.sqrt(np.sum(((px1 - px2)*vox_size_tile)**2,axis=1))
                 eucdis_tmp[n] = np.amax(eucdis)
             max_euc_dis = np.amax(eucdis_tmp)
-            self._df_feature_output['ShapeSize_max_euc_dis'] = max_euc_dis
+            if self._foutput_format == 'df':
+                self._df_feature_output['ShapeSize_max_euc_dis'] = max_euc_dis
+            elif self._foutput_format == 'dict':
+                self._dict_feature_output['ShapeSize_max_euc_dis'] = max_euc_dis
 
         # R is the radius of the sphere with the same volume as the tumor
         tumor_sphere_R = (3*vol_cm3/(4*np.pi))**(1./3)
-        self._df_feature_output['ShapeSize_spherical_disproportion'] = surf_area_cm2/(4*np.pi*tumor_sphere_R**2)
+        if self._foutput_format == 'df':
+            self._df_feature_output['ShapeSize_spherical_disproportion'] = surf_area_cm2/(4*np.pi*tumor_sphere_R**2)
+        elif self._foutput_format == 'dict':
+            self._dict_feature_output['ShapeSize_spherical_disproportion'] = surf_area_cm2/(4*np.pi*tumor_sphere_R**2)
 
         print '::ImageFeature:: complete compute_shape_size_features!'
 
@@ -282,7 +324,10 @@ class ImageFeature:
             new_k = 'FOstats_' + k
             data_stats[new_k] = data_stats.pop(k)
 
-        self._df_feature_output.update(data_stats)
+        if self._foutput_format == 'df':
+            self._df_feature_output.update(data_stats)
+        elif self._foutput_format == 'dict':
+            self._dict_feature_output.update(data_stats)
 
         # compute histogram-related stats
         # density = True ==> the integral of p_data = 1.0, i.e. np.sum(p_data*np.diff(p_bin)) = 1.0
@@ -291,9 +336,17 @@ class ImageFeature:
         if tmp is ma.masked:
             print '::Oh NO O_O:: FOstats_entropy is a masked constant!!'
         else:
-            self._df_feature_output['FOstats_entropy'] = tmp
-        self._df_feature_output['FOstats_energy'] = np.sum(data**2)
-        self._df_feature_output['FOstats_uniformity'] = np.sum(p_data**2)
+            if self._foutput_format == 'df':
+                self._df_feature_output['FOstats_entropy'] = tmp
+            elif self._foutput_format == 'dict':
+                self._dict_feature_output['FOstats_entropy'] = tmp
+
+        if self._foutput_format == 'df':
+            self._df_feature_output['FOstats_energy'] = np.sum(data**2)
+            self._df_feature_output['FOstats_uniformity'] = np.sum(p_data**2)
+        elif self._foutput_format == 'dict':
+            self._dict_feature_output['FOstats_energy'] = np.sum(data ** 2)
+            self._dict_feature_output['FOstats_uniformity'] = np.sum(p_data**2)
 
         print '::ImageFeature:: complete compute_first_order_stats!'
 

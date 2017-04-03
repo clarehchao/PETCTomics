@@ -59,7 +59,7 @@ for ii in iTumors:
                         'diff_entropy', 'dissimilarity', 'energy', 'entropy', 'homogeneity1', 'homogeneity2', 'idmn',
                         'idn', 'inv_var', 'maxprob', 'sum_avg', 'sum_entropy', 'sum_var']
 
-    theimf = ImF.ImageFeature(itk_img_orient,feature_list,itk_tumor_orient)
+    theimf = ImF.ImageFeature(itk_img_orient,feature_list,itk_tumor_orient,'df')
 
 
     pt_features_data = pd.DataFrame()

@@ -1,0 +1,4 @@
+.gitignore
+.git/
+.idea/
+rsync_exclude.txt

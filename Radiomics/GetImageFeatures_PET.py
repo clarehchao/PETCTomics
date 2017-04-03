@@ -147,7 +147,7 @@ if __name__ == '__main__':
                 ImP.ITK_Image_OverlayPlot(final_itk_img,final_itk_mask,'Post Resampling + SUV PET image + Tumor mask')
 
             # define texture feature list
-            theimf = ImF.ImageFeature(final_itk_img,feature_list,final_itk_mask)
+            theimf = ImF.ImageFeature(final_itk_img,feature_list,final_itk_mask,'dict')
 
             pt_features_data = pd.DataFrame()
             for aa in img_norm_Nbin:
@@ -167,7 +167,7 @@ if __name__ == '__main__':
                     tmp_dict['organ_mask'] = 'breast tumor'
                     tmp_dict['process_name'] = 'GetImageFeature_VOI'
                     tmp_dict['process_version'] = '1.0'
-                    tmp_dict['voxel_size_mm3'] = the_img_spacingRCS
+                    tmp_dict['voxel_size_mm3'] = [tuple(the_img_spacingRCS)] * len(tmp_dict)
                     tmp_dict['breast_side'] = breast_side
 
                     #TODO: instead of writing to a dataframe, consider write to the mongodb db
