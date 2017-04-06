@@ -512,62 +512,74 @@ def ClustermapPlot(the_df,varname,fig_title,fig_fname):
     plt.close()
     # plt.show()
 
+def str_find_dict(the_str,the_dict):
+    for kk in the_dict.keys():
+        ss = the_str.lower().replace(' ','')  #lower-case and remove white space
+        if ss.find(kk.lower()) >= 0:
+            return kk
+    print 'cannot find a key in the dictionary that matches the string'
+    return 0
+
+def recur_func(x):
+    if x == 'NEVER DISEASE FREE':
+        return 2
+    elif x == 'NONE/DISEASE FREE' or x is np.nan:
+        return 0
+    else:
+        return 1
+
+# Recurrence type: 0: assume NaN or NONE/DISEASE FREE are no recurrence
+# 1: bone recur, 2: local recur, 3: distant/systemic recur
+# -1: unknown recur type AND never disease free
+def recur_type_func(x):
+    if x is np.nan or x == 'NONE/DISEASE FREE':
+        return 0
+    elif x == 'DIST RECUR, BONE':
+        return 1
+    elif re.search(r'LOCAL RECUR[\w\s.]*',x):
+        return 2
+    elif re.search(r'DIST RECUR[\w\s.]*',x) and x != 'DIST RECUR, BONE':
+        return 3
+    else:
+        return 4
+
+def Tstage_func(x):
+    tstage_list = ['T0', 'Tis','T1','T2', 'T3', 'T4', 'TX', 'calc']
+    tstage_dict = dict(zip(tstage_list, range(len(tstage_list))))
+    if x is np.nan:
+        # print 'x is nan'
+        return x
+    else:
+        kk = str_find_dict(x,tstage_dict)
+        if kk != 0:
+            return tstage_dict[kk]
+        else:
+            return np.nan
+
+def Nstage_func(x):
+    nstage_list = ['N0', 'N1', 'N2', 'N3', 'NX', 'calc']
+    nstage_dict = dict(zip([ss.lower() for ss in nstage_list], range(len(nstage_list))))
+    if x is np.nan:
+        return x
+    else:
+        kk = str_find_dict(x, nstage_dict)
+        if kk != 0:
+            return nstage_dict[kk]
+        else:
+            return np.nan
+
 if __name__ == '__main__':
     # gather outcome data
     rootdir = '/Users/shuang/Documents/Proj_Radiomics/Data/her2'
     outcome_fname = '{}/her2_ClinicalData/her2_outcome.csv'.format(rootdir)
     her2_outcome_df = pd.read_csv(outcome_fname,dtype={'MRN': str,'Recurrence Type Summary': str})
 
-    def recur_func(x):
-        if x == 'NEVER DISEASE FREE':
-            return 2
-        elif x == 'NONE/DISEASE FREE' or x is np.nan:
-            return 0
-        else:
-            return 1
     # Recurrence_CR (recurrence info based on Cancer Registry field 'Recurrence Type Summary'): -1, always have cancer, 0, no recurrence, and 1, recur
     her2_outcome_df['Recurrence_CR'] = her2_outcome_df['Recurrence Type Summary'].map(recur_func)
-
-    # Recurrence type: 0: assume NaN or NONE/DISEASE FREE are no recurrence
-    # 1: bone recur, 2: local recur, 3: distant/systemic recur
-    # -1: unknown recur type AND never disease free
-    def recur_type_func(x):
-        if x is np.nan or x == 'NONE/DISEASE FREE':
-            return 0
-        elif x == 'DIST RECUR, BONE':
-            return 1
-        elif re.search(r'LOCAL RECUR[\w\s.]*',x):
-            return 2
-        elif re.search(r'DIST RECUR[\w\s.]*',x) and x != 'DIST RECUR, BONE':
-            return 3
-        else:
-            return 4
     her2_outcome_df['Recurrence_Type'] = her2_outcome_df['Recurrence Type Summary'].map(recur_type_func)
 
     # catergorize tumor and lymph node stages
-    def Tstage_func(x):
-        tstage_list = ['T0', 'Tis', 'T1mic', 'T1', 'T1a', 'T1b', 'T1c', 'T2', 'T3', 'T4', 'T4a', 'T4b', 'T4c', 'T4d',
-                       'TX', 'calc']
-        tstage_dict = dict(zip([ss.lower() for ss in tstage_list], range(len(tstage_list))))
-        tstage_dict['t2yp'] = 7  # this is the exception for T2, not sure what T2yp is but assume it's the same as T2
-        if x is np.nan:
-            # print 'x is nan'
-            return x
-        elif x.lower().replace(' ','') in tstage_dict.keys():
-            # print 'in dict,{}'.format(tstage_dict[x.lower().replace(' ','')])
-            return tstage_dict[x.lower().replace(' ','')]
-
     her2_outcome_df['T-stage'] = her2_outcome_df['T-stage at surgery'].map(Tstage_func)
-
-    def Nstage_func(x):
-        nstage_list = ['N0', 'N1', 'N2a', 'N2b', 'N3a', 'N3b', 'N3c', 'NX', 'N3a', 'calc']
-        nstage_dict = dict(zip([ss.lower() for ss in nstage_list], range(len(nstage_list))))
-
-        if x is np.nan:
-            return x
-        elif x.lower().replace(' ','') in nstage_dict.keys():
-            return nstage_dict[x.lower().replace(' ','')]
-
     her2_outcome_df['N-stage'] = her2_outcome_df['N-stage at surgery'].map(Nstage_func)
 
     # # Recurrence field does not seem reliable...
@@ -577,76 +589,129 @@ if __name__ == '__main__':
 
     the_outcome_df = her2_outcome_df.loc[:, ['MRN', 'Recurrence_CR','Recurrence_Type','T-stage','N-stage']]
 
-    # # PET image feature data
-    # dist_method_list = ['euclidean','spearman','pearson']
-    # cluster_method_dict = {'pam': None, 'km': None, 'kmdist': None,'hc':['centroid','median','average','mcquitty','complete']}
-    # Ncluster_list = [2, 3, 4, 5]
+    # PET image feature data
+    dist_method_list = ['euclidean','spearman','pearson']
+    cluster_method_dict = {'pam': None, 'km': None, 'kmdist': None,'hc':['centroid','median','average','mcquitty','complete']}
+    Ncluster_list = [2, 3, 4, 5]
     # theimgbin = [32, 64, 128]
     # theglcmbin = [32, 64, 128]
+    theimgbin = [128]
+    theglcmbin = [64]
+
+    # # for testing purpose
+    # dist_method_list = ['pearson']
+    # cluster_method_dict = {'hc': ['average']}
+    # Ncluster_list = [4]
+    # theimgbin = [32]
+    # theglcmbin = [32]
+
+    for tt, bb in itt.product(theimgbin, theglcmbin):
+        pet_dir = '{}/her2_Analysis/PET/IsoVoxel_IMGBIN{}_GLCMBIN{}'.format(rootdir,tt,bb)
+        df_fname = '{}/PETdataAll_glcmNbin{}_normNbin{}.csv'.format(pet_dir,bb,tt)
+        data_df = pd.read_csv(df_fname, dtype={'MRN': str})
+        jdf = pd.merge(data_df, the_outcome_df, on='MRN')
+        print 'read the file {}'.format(df_fname)
+        print data_df.shape
+        print jdf.shape
+
+        for ncluster in Ncluster_list:
+            for k, val in cluster_method_dict.items():
+                if val:
+                    for ll,dd in itt.product(val,dist_method_list):
+                        cc_dir = '{}/ConsensusCluster_{}_{}_{}'.format(pet_dir,k,ll,dd)
+                        cs_class_fname = '{}/ConsensusClass_kmax{}.csv'.format(cc_dir,ncluster)
+                        print 'read the file {}'.format(cs_class_fname)
+                        cs_class_df = pd.read_csv(cs_class_fname)
+                        cs_class_df.columns = ['ptid_side', 'cs_class']
+
+                        # combine the cs_class to the_df
+                        the_df = pd.merge(jdf, cs_class_df, how='left', on='ptid_side')
+                        fig_title = 'cluster method: {}, linkage: {}, distance method: {}'.format(k, ll, dd)
+                        fig_fname = '{}/clustermap_Tstage_kmax{}.pdf'.format(cc_dir,ncluster)
+                        ClustermapPlot(the_df,'T-stage',fig_title,fig_fname)
+
+                        fig_fname = '{}/clustermap_Nstage_kmax{}.pdf'.format(cc_dir, ncluster)
+                        ClustermapPlot(the_df, 'N-stage', fig_title, fig_fname)
+
+                        fig_fname = '{}/clustermap_tumorstatus_kmax{}.pdf'.format(cc_dir,ncluster)
+                        ClustermapPlot_TumorStatus(the_df,fig_title,fig_fname)
+
+                        fig_fname = '{}/clustermap_recurstatus_kmax{}.pdf'.format(cc_dir,ncluster)
+                        ClustermapPlot_PtOutcome1(the_df, fig_title, fig_fname)
+
+                        fig_fname = '{}/clustermap_recurtype_kmax{}.pdf'.format(cc_dir,ncluster)
+                        ClustermapPlot_PtOutcome2(the_df, fig_title, fig_fname)
+                else:
+                    for dd in dist_method_list:
+                        cc_dir = '{}/ConsensusCluster_{}_{}'.format(pet_dir,k,dd)
+                        cs_class_fname = '{}/ConsensusClass_kmax{}.csv'.format(cc_dir, ncluster)
+                        cs_class_df = pd.read_csv(cs_class_fname)
+                        cs_class_df.columns = ['ptid_side', 'cs_class']
+                        print 'read the file {}'.format(cs_class_fname)
+
+                        # combine the cs_class to the_df
+                        the_df = pd.merge(jdf, cs_class_df, how='left', on='ptid_side')
+                        print the_df.shape
+
+                        fig_title = 'cluster method: {}, distance method: {}'.format(k, dd)
+                        fig_fname = '{}/clustermap_Tstage_kmax{}.pdf'.format(cc_dir, ncluster)
+                        ClustermapPlot(the_df, 'T-stage', fig_title, fig_fname)
+
+                        fig_fname = '{}/clustermap_Nstage_kmax{}.pdf'.format(cc_dir, ncluster)
+                        ClustermapPlot(the_df, 'N-stage', fig_title, fig_fname)
+
+                        fig_fname = '{}/clustermap_tumorstatus_kmax{}.pdf'.format(cc_dir,ncluster)
+                        ClustermapPlot_TumorStatus(the_df, fig_title, fig_fname)
+
+                        fig_fname = '{}/clustermap_recurstatus_kmax{}.pdf'.format(cc_dir, ncluster)
+                        ClustermapPlot_PtOutcome1(the_df, fig_title, fig_fname)
+
+                        fig_fname = '{}/clustermap_recurtype_kmax{}.pdf'.format(cc_dir, ncluster)
+                        ClustermapPlot_PtOutcome2(the_df, fig_title, fig_fname)
+
+
+
+    # # MRI image feature data
+    # theTP = [1, 2, 3]
+    # theglcmBin = [64, 128, 256]
+    # Ncluster_list = [2,3,4,5]
+    # dist_method_list = ['euclidean','spearman','pearson']
+    # cluster_method_dict = {'pam': None, 'km': None, 'kmdist': None,'hc':['centroid','median','average','mcquitty','complete']}
     #
     # # # for testing purpose
-    # # dist_method_list = ['pearson']
-    # # cluster_method_dict = {'hc': ['average']}
-    # # Ncluster_list = [4]
-    # # theimgbin = [32]
-    # # theglcmbin = [32]
+    # # theTP = [1]
+    # # theglcmBin = [64]
+    # # Ncluster_list = [2]
+    # # dist_method_list = ['euclidean']
+    # # cluster_method_dict = {'km': None}
     #
-    # for tt, bb in itt.product(theimgbin, theglcmbin):
-    #     pet_dir = '{}/her2_Analysis/PET/IsoVoxel_IMGBIN{}_GLCMBIN{}'.format(rootdir,tt,bb)
-    #     df_fname = '{}/PETdataAll_glcmNbin{}_normNbin{}.csv'.format(pet_dir,bb,tt)
-    #     data_df = pd.read_csv(df_fname, dtype={'MRN': str})
+    # for tt, bb in itt.product(theTP, theglcmBin):
+    #     mri_dir = '{}/her2_Analysis/MRI/IsoVoxel_TP{}_GLCMBIN{}'.format(rootdir, tt, bb)
+    #     df_fname = '{}/MRIdataAll_tp{}_Nbin{}.csv'.format(mri_dir, tt, bb)
+    #     data_df = pd.read_csv(df_fname, dtype={'PRIMARY_ID': str, 'MRN': str})
     #     jdf = pd.merge(data_df, the_outcome_df, on='MRN')
     #     print 'read the file {}'.format(df_fname)
-    #     print data_df.shape
-    #     print jdf.shape
     #
     #     for ncluster in Ncluster_list:
     #         for k, val in cluster_method_dict.items():
     #             if val:
     #                 for ll,dd in itt.product(val,dist_method_list):
-    #                     cc_dir = '{}/ConsensusCluster_{}_{}_{}'.format(pet_dir,k,ll,dd)
+    #                     cc_dir = '{}/ConsensusCluster_{}_{}_{}'.format(mri_dir,k,ll,dd)
     #                     cs_class_fname = '{}/ConsensusClass_kmax{}.csv'.format(cc_dir,ncluster)
-    #                     print 'read the file {}'.format(cs_class_fname)
+    #                     print 'read file {}'.format(cs_class_fname)
     #                     cs_class_df = pd.read_csv(cs_class_fname)
     #                     cs_class_df.columns = ['ptid_side', 'cs_class']
     #
     #                     # combine the cs_class to the_df
     #                     the_df = pd.merge(jdf, cs_class_df, how='left', on='ptid_side')
     #                     fig_title = 'cluster method: {}, linkage: {}, distance method: {}'.format(k, ll, dd)
-    #                     fig_fname = '{}/clustermap_Tstage_kmax{}.pdf'.format(cc_dir,ncluster)
-    #                     ClustermapPlot(the_df,'T-stage',fig_title,fig_fname)
-    #
-    #                     fig_fname = '{}/clustermap_Nstage_kmax{}.pdf'.format(cc_dir, ncluster)
-    #                     ClustermapPlot(the_df, 'N-stage', fig_title, fig_fname)
-    #
-    #                     fig_fname = '{}/clustermap_tumorstatus_kmax{}.pdf'.format(cc_dir,ncluster)
-    #                     ClustermapPlot_TumorStatus(the_df,fig_title,fig_fname)
-    #
-    #                     fig_fname = '{}/clustermap_recurstatus_kmax{}.pdf'.format(cc_dir,ncluster)
-    #                     ClustermapPlot_PtOutcome1(the_df, fig_title, fig_fname)
-    #
-    #                     fig_fname = '{}/clustermap_recurtype_kmax{}.pdf'.format(cc_dir,ncluster)
-    #                     ClustermapPlot_PtOutcome2(the_df, fig_title, fig_fname)
-    #             else:
-    #                 for dd in dist_method_list:
-    #                     cc_dir = '{}/ConsensusCluster_{}_{}'.format(pet_dir,k,dd)
-    #                     cs_class_fname = '{}/ConsensusClass_kmax{}.csv'.format(cc_dir, ncluster)
-    #                     cs_class_df = pd.read_csv(cs_class_fname)
-    #                     cs_class_df.columns = ['ptid_side', 'cs_class']
-    #                     print 'read the file {}'.format(cs_class_fname)
-    #
-    #                     # combine the cs_class to the_df
-    #                     the_df = pd.merge(jdf, cs_class_df, how='left', on='ptid_side')
-    #                     print the_df.shape
-    #
-    #                     fig_title = 'cluster method: {}, distance method: {}'.format(k, dd)
     #                     fig_fname = '{}/clustermap_Tstage_kmax{}.pdf'.format(cc_dir, ncluster)
     #                     ClustermapPlot(the_df, 'T-stage', fig_title, fig_fname)
     #
     #                     fig_fname = '{}/clustermap_Nstage_kmax{}.pdf'.format(cc_dir, ncluster)
     #                     ClustermapPlot(the_df, 'N-stage', fig_title, fig_fname)
     #
-    #                     fig_fname = '{}/clustermap_tumorstatus_kmax{}.pdf'.format(cc_dir,ncluster)
+    #                     fig_fname = '{}/clustermap_tumorstatus_kmax{}.pdf'.format(cc_dir, ncluster)
     #                     ClustermapPlot_TumorStatus(the_df, fig_title, fig_fname)
     #
     #                     fig_fname = '{}/clustermap_recurstatus_kmax{}.pdf'.format(cc_dir, ncluster)
@@ -654,82 +719,31 @@ if __name__ == '__main__':
     #
     #                     fig_fname = '{}/clustermap_recurtype_kmax{}.pdf'.format(cc_dir, ncluster)
     #                     ClustermapPlot_PtOutcome2(the_df, fig_title, fig_fname)
-
-
-
-    # MRI image feature data
-    theTP = [1, 2, 3]
-    theglcmBin = [64, 128, 256]
-    Ncluster_list = [2,3,4,5]
-    dist_method_list = ['euclidean','spearman','pearson']
-    cluster_method_dict = {'pam': None, 'km': None, 'kmdist': None,'hc':['centroid','median','average','mcquitty','complete']}
-
-    # # for testing purpose
-    # theTP = [1]
-    # theglcmBin = [64]
-    # Ncluster_list = [2]
-    # dist_method_list = ['euclidean']
-    # cluster_method_dict = {'km': None}
-
-    for tt, bb in itt.product(theTP, theglcmBin):
-        mri_dir = '{}/her2_Analysis/MRI/IsoVoxel_TP{}_GLCMBIN{}'.format(rootdir, tt, bb)
-        df_fname = '{}/MRIdataAll_tp{}_Nbin{}.csv'.format(mri_dir, tt, bb)
-        data_df = pd.read_csv(df_fname, dtype={'PRIMARY_ID': str, 'MRN': str})
-        jdf = pd.merge(data_df, the_outcome_df, on='MRN')
-        print 'read the file {}'.format(df_fname)
-
-        for ncluster in Ncluster_list:
-            for k, val in cluster_method_dict.items():
-                if val:
-                    for ll,dd in itt.product(val,dist_method_list):
-                        cc_dir = '{}/ConsensusCluster_{}_{}_{}'.format(mri_dir,k,ll,dd)
-                        cs_class_fname = '{}/ConsensusClass_kmax{}.csv'.format(cc_dir,ncluster)
-                        print 'read file {}'.format(cs_class_fname)
-                        cs_class_df = pd.read_csv(cs_class_fname)
-                        cs_class_df.columns = ['ptid_side', 'cs_class']
-
-                        # combine the cs_class to the_df
-                        the_df = pd.merge(jdf, cs_class_df, how='left', on='ptid_side')
-                        fig_title = 'cluster method: {}, linkage: {}, distance method: {}'.format(k, ll, dd)
-                        fig_fname = '{}/clustermap_Tstage_kmax{}.pdf'.format(cc_dir, ncluster)
-                        ClustermapPlot(the_df, 'T-stage', fig_title, fig_fname)
-
-                        fig_fname = '{}/clustermap_Nstage_kmax{}.pdf'.format(cc_dir, ncluster)
-                        ClustermapPlot(the_df, 'N-stage', fig_title, fig_fname)
-
-                        fig_fname = '{}/clustermap_tumorstatus_kmax{}.pdf'.format(cc_dir, ncluster)
-                        ClustermapPlot_TumorStatus(the_df, fig_title, fig_fname)
-
-                        fig_fname = '{}/clustermap_recurstatus_kmax{}.pdf'.format(cc_dir, ncluster)
-                        ClustermapPlot_PtOutcome1(the_df, fig_title, fig_fname)
-
-                        fig_fname = '{}/clustermap_recurtype_kmax{}.pdf'.format(cc_dir, ncluster)
-                        ClustermapPlot_PtOutcome2(the_df, fig_title, fig_fname)
-
-                else:
-                    for dd in dist_method_list:
-                        cc_dir = '{}/ConsensusCluster_{}_{}'.format(mri_dir,k,dd)
-                        cs_class_fname = '{}/ConsensusClass_kmax{}.csv'.format(cc_dir, ncluster)
-                        print 'read file {}'.format(cs_class_fname)
-                        cs_class_df = pd.read_csv(cs_class_fname)
-                        cs_class_df.columns = ['ptid_side', 'cs_class']
-
-                        # combine the cs_class to the_df
-                        the_df = pd.merge(jdf, cs_class_df, how='left', on='ptid_side')
-                        fig_title = 'cluster method: {}, linkage: {}, distance method: {}'.format(k, ll, dd)
-                        fig_fname = '{}/clustermap_Tstage_kmax{}.pdf'.format(cc_dir, ncluster)
-                        ClustermapPlot(the_df, 'T-stage', fig_title, fig_fname)
-
-                        fig_fname = '{}/clustermap_Nstage_kmax{}.pdf'.format(cc_dir, ncluster)
-                        ClustermapPlot(the_df, 'N-stage', fig_title, fig_fname)
-
-                        fig_fname = '{}/clustermap_tumorstatus_kmax{}.pdf'.format(cc_dir, ncluster)
-                        ClustermapPlot_TumorStatus(the_df, fig_title, fig_fname)
-
-                        fig_fname = '{}/clustermap_recurstatus_kmax{}.pdf'.format(cc_dir, ncluster)
-                        ClustermapPlot_PtOutcome1(the_df, fig_title, fig_fname)
-
-                        fig_fname = '{}/clustermap_recurtype_kmax{}.pdf'.format(cc_dir, ncluster)
-                        ClustermapPlot_PtOutcome2(the_df, fig_title, fig_fname)
+    #
+    #             else:
+    #                 for dd in dist_method_list:
+    #                     cc_dir = '{}/ConsensusCluster_{}_{}'.format(mri_dir,k,dd)
+    #                     cs_class_fname = '{}/ConsensusClass_kmax{}.csv'.format(cc_dir, ncluster)
+    #                     print 'read file {}'.format(cs_class_fname)
+    #                     cs_class_df = pd.read_csv(cs_class_fname)
+    #                     cs_class_df.columns = ['ptid_side', 'cs_class']
+    #
+    #                     # combine the cs_class to the_df
+    #                     the_df = pd.merge(jdf, cs_class_df, how='left', on='ptid_side')
+    #                     fig_title = 'cluster method: {}, linkage: {}, distance method: {}'.format(k, ll, dd)
+    #                     fig_fname = '{}/clustermap_Tstage_kmax{}.pdf'.format(cc_dir, ncluster)
+    #                     ClustermapPlot(the_df, 'T-stage', fig_title, fig_fname)
+    #
+    #                     fig_fname = '{}/clustermap_Nstage_kmax{}.pdf'.format(cc_dir, ncluster)
+    #                     ClustermapPlot(the_df, 'N-stage', fig_title, fig_fname)
+    #
+    #                     fig_fname = '{}/clustermap_tumorstatus_kmax{}.pdf'.format(cc_dir, ncluster)
+    #                     ClustermapPlot_TumorStatus(the_df, fig_title, fig_fname)
+    #
+    #                     fig_fname = '{}/clustermap_recurstatus_kmax{}.pdf'.format(cc_dir, ncluster)
+    #                     ClustermapPlot_PtOutcome1(the_df, fig_title, fig_fname)
+    #
+    #                     fig_fname = '{}/clustermap_recurtype_kmax{}.pdf'.format(cc_dir, ncluster)
+    #                     ClustermapPlot_PtOutcome2(the_df, fig_title, fig_fname)
 
 
