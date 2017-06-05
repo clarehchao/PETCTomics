@@ -271,7 +271,7 @@ class GLCMTextureFeature:
                                      'contrast': [self.contrast], 'correlation': [self.correlation],
                                      'diff_entropy': [self.differenceentropy],
                                      'dissimilarity': [self.dissimilarity], 'energy': [self.energy],
-                                     'entropy': [self.entropy], 'homogeneity1': [self.homogeneity2],
+                                     'entropy': [self.entropy], 'homogeneity1': [self.homogeneity1],
                                      'homogeneity2': [self.homogeneity2],
                                      'idmn': [self.IDNM], 'idn': [self.IDN],
                                      'inv_var': [self.inverse_var], 'maxprob': [self.maxprob],

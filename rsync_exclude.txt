@@ -2,3 +2,6 @@
 .git/
 .idea/
 rsync_exclude.txt
+Radiomics/*.txt
+#Radiomics/ClusterConsensusViz.py
+#Radiomics/Chi2Test_Radiomics.py

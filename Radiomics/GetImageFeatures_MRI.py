@@ -1,3 +1,4 @@
+#! /usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 Created on 9/27/16 10:29 AM
@@ -93,6 +94,7 @@ if __name__ == '__main__':
             findserdmi = glob.glob('{}/{}_{}*.SER_MASK.dmi'.format(im_info_dir,pt_id,breast_side))
             if findserdmi:
                 ser_mask_fname = findserdmi[0]
+                print 'ser_mask_fname: {}'.format(ser_mask_fname)
             else:
                 print 'pt_id {}: SER mask DMI file was NOT found!'.format(pt_id)
                 continue
@@ -136,6 +138,7 @@ if __name__ == '__main__':
 
                     # resample the mask VOI to the desired voxel spacing
                     resampled_itk_mask = itkif.ITKImageResample(ser_mask_sagittal_roi,the_img_spacing,is_mask=True)
+                    
 
                 # get the image VOI
                 mri_itk_sagittal_roi = ImP.GetITKVOI(mri_itk_sagittal, voi_size, voi_ixyz)
@@ -153,13 +156,13 @@ if __name__ == '__main__':
                 # resample the image VOI to the desired voxel spacing
                 resampled_itk_img = itkif.ITKImageResample(mri_itk_sagittal_roi,the_img_spacing,is_mask=False)
 
-                # # visual checking of images and mask
-                # IG_resampled_itk_img = image_geometry.ImageGeometry(resampled_itk_img)
-                # ar = IG_resampled_itk_img.samplingSRC[2]/IG_resampled_itk_img.samplingSRC[1]
-                # img_array = ITKImageHelper.itkImage_to_ndarray(resampled_itk_img)
-                # mask_array = ITKImageHelper.itkImage_to_ndarray(resampled_itk_mask)
-                # ImP.display_overlay_volume(img_array, mask_array, 'DCE-MRI image Resampled VOI + SER mask Resampled VOI', aspect=ar)
-
+                # visual checking of images and mask
+                #IG_resampled_itk_img = image_geometry.ImageGeometry(resampled_itk_img)
+                #ar = IG_resampled_itk_img.samplingSRC[2]/IG_resampled_itk_img.samplingSRC[1]
+                #img_array = ITKImageHelper.itkImage_to_ndarray(resampled_itk_img)
+                #mask_array = ITKImageHelper.itkImage_to_ndarray(resampled_itk_mask)
+                #ImP.display_overlay_volume(img_array, mask_array, 'DCE-MRI image Resampled VOI + SER mask Resampled VOI', aspect=ar)
+                #print 'mask resampled voxel size (mm^3): {}'.format(IG_resampled_itk_img.samplingRCS)
                 # define texture feature list
                 theimf = ImF.ImageFeature(resampled_itk_img,feature_list,resampled_itk_mask,'dict')
 
@@ -195,7 +198,7 @@ if __name__ == '__main__':
             dataoutfname = '{}/MRI_features_data_{}_{}.json'.format(save_dir,pt_id,breast_side)
             pt_features_data.to_json(dataoutfname)
 
-        # # save the memory log
-        # outfile = open('{}/memory_usage_{}_{}.txt'.format(save_dir,pid_start,pid_end), 'w')
-        # outfile.write('\n'.join([str(s) for s in mem_use]))
-        # outfile.close()
+        # save the memory log
+        outfile = open('{}/memory_usage_{}_{}.txt'.format(save_dir,pid_start,pid_end), 'w')
+        outfile.write('\n'.join([str(s) for s in mem_use]))
+        outfile.close()

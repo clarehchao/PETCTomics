@@ -123,9 +123,9 @@ def ITKImageResample(input_itk_img,output_img_spacing,is_mask):
 
     # setup output image size
     output_img_size = itk.Size[input_img_dim]()
-    # output_img_size[0] = long((input_img_size[0]-1) * input_img_spacing[0] / output_img_spacing[0])
-    # output_img_size[1] = long((input_img_size[1] -1) * input_img_spacing[1] / output_img_spacing[1])
-    # output_img_size[2] = long((input_img_size[2]-1) * input_img_spacing[2] / output_img_spacing[2])
+    #output_img_size[0] = long((input_img_size[0]-1) * input_img_spacing[0] / output_img_spacing[0])
+    #output_img_size[1] = long((input_img_size[1] -1) * input_img_spacing[1] / output_img_spacing[1])
+    #output_img_size[2] = long((input_img_size[2]-1) * input_img_spacing[2] / output_img_spacing[2])
     output_img_size[0] = long(input_img_size[0]* input_img_spacing[0] / output_img_spacing[0])
     output_img_size[1] = long(input_img_size[1] * input_img_spacing[1] / output_img_spacing[1])
     output_img_size[2] = long(input_img_size[2] * input_img_spacing[2] / output_img_spacing[2])

@@ -1,0 +1,259 @@
+#! /usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+Created on 5/23/17
+
+@author: shuang
+@goal: categorize her2 clinical data for data explore
+
+"""
+
+import pandas as pd
+import re
+import numpy as np
+import glob
+import os
+
+def str_find_dict(the_str,the_dict):
+    for kk in the_dict.keys():
+        ss = the_str.lower().replace(' ','')  #lower-case and remove white space
+        match_list = the_dict[kk][0]
+        for mm in match_list:
+            # print 'the_str:{}, match: {}'.format(ss,mm)
+            if ss.find(mm.lower()) >= 0:
+                return kk
+    print '{}: cannot find a key in the dictionary that matches the string'.format(the_str)
+    return 0
+
+def recur_func2(x):
+    """
+    out of the patients who was disease free in his/her life, 0 if no recur, 1 if recur
+    :param x: entry in the recurrent type summary data
+    :return: return nan if N/A, 0 if disease free/no recur, 1 if some sort of recurrence or never disease free
+    """
+    if x is np.nan or x.lower() == 'unknown' or x.lower() == 'never disease free':
+        return np.nan
+    elif x.lower().find('recur') >= 0:
+        return 1
+    elif x == 'NONE/DISEASE FREE':
+        return 0
+
+def recur_func1(x):
+    if x is np.nan or x.lower() == 'unknown':
+        return np.nan
+    if x.lower() == 'never disease free':
+        return 2
+    elif x == 'NONE/DISEASE FREE':
+        return 0
+    else:
+        return 1
+
+def recur_func0(x):
+    if x == 'NEVER DISEASE FREE':
+        return 2
+    # elif x == 'NONE/DISEASE FREE' or x is np.nan or x.lower() == 'unknown':
+    elif x == 'NONE/DISEASE FREE' or x is np.nan:
+        return 0
+    else:
+        return 1
+
+def recur_dT(row):
+    dT = pd.to_datetime(row['Last contact/death']) - pd.to_datetime(row['Date of Primary Dx'])
+    if isinstance(dT, pd.tslib.NaTType):
+        dT_yr = -1
+    else:
+        dT_yr = dT.days / 365.
+
+    return dT_yr
+
+def diseasefree5yr_func(row):
+    """
+    :param x: a row in a pandas dataframe
+    :return: return nan if N/A, 0 if disease free/no recur after 5 years, 1 if some sort of recurrence or never disease free
+    """
+    dT = pd.to_datetime(row['Last contact/death']) - pd.to_datetime(row['Date of Primary Dx'])
+    if isinstance(dT,pd.tslib.NaTType):
+        dT_yr = -1
+    else:
+        dT_yr = dT.days/365.
+
+    if row['Recurrence Type Summary'] is np.nan or row['Recurrence Type Summary'].lower() == 'unknown':
+        return np.nan
+    elif row['Recurrence Type Summary'] == 'NONE/DISEASE FREE' and dT_yr >= 5.0:
+        return 1
+    else:
+        return 0
+
+# 0: no recur, 1: local recur, 2: distant recur (bone and others),
+# nan or 'unknown' or 'never disease free' or 'recurred, type unknow': N/A,
+def recur_type_func(x):
+    if x is np.nan or x.lower().find('unknown') >= 0 or x.lower() == 'never disease free':
+        return np.nan
+    elif x == 'NONE/DISEASE FREE':
+        return 0
+    elif re.search(r'LOCAL RECUR[\w\s.]*',x):
+        return 1
+    elif re.search(r'DIST RECUR[\w\s.]*',x):
+        return 2
+
+# def recur_type_func(x):
+#     if x is np.nan or x.lower() == 'unknown' or x.lower() == 'never disease free':
+#         return np.nan
+#     elif x == 'NONE/DISEASE FREE':
+#         return 0
+#     elif x == 'DIST RECUR, BONE':
+#         return 1
+#     elif re.search(r'LOCAL RECUR[\w\s.]*',x):
+#         return 2
+#     elif re.search(r'DIST RECUR[\w\s.]*',x) and x != 'DIST RECUR, BONE':
+#         return 3
+
+def Tstage_func(x):
+    tstage_dict = {'T0':(['T0','TX','calc','Tis'],0), 'T1':(['T1'],1), 'T2':(['T2'],2),'T3':(['T3'],3),'T4':(['T4'],4)}
+    # add the numerical values to each or combined category
+    # tstage_k = tstage_dict.keys()
+    # for i in range(len(tstage_k)):
+    #     tstage_dict[tstage_k[i]] = (tstage_dict[tstage_k[i]],i)
+
+    if x is np.nan:
+        # print 'x is nan'
+        return x
+    else:
+        kk = str_find_dict(x,tstage_dict)
+        if kk != 0:
+            return tstage_dict[kk][1]
+        else:
+            return np.nan
+
+def Nstage_func(x):
+    nstage_dict = {'N0': (['N0','NX','calc'],0), 'N1': (['N1'],1), 'N2': (['N2'],2), 'N3': (['N3'],3)}
+
+    # # add the numerical values to each or combined category
+    # nstage_k = nstage_dict.keys()
+    # for i in range(len(nstage_k)):
+    #     nstage_dict[nstage_k[i]] = (nstage_dict[nstage_k[i]], i)
+
+    if x is np.nan:
+        return x
+    else:
+        kk = str_find_dict(x, nstage_dict)
+        if kk != 0:
+            return nstage_dict[kk][1]
+        else:
+            return np.nan
+
+def Overallstage_func(x):
+    ostage_dict = {'0': (['0','calc'],0), '1': (['1'],1), '2': (['2'],2), '3': (['3'],3), '4':(['4'],4)}
+
+    # # add the numerical values to each or combined category
+    # ostage_k = ostage_dict.keys()
+    # for i in range(len(ostage_k)):
+    #     ostage_dict[ostage_k[i]] = (ostage_dict[ostage_k[i]], i)
+
+    if x is np.nan:
+        return x
+    else:
+        kk = str_find_dict(x, ostage_dict)
+        if kk != 0:
+            return ostage_dict[kk][1]
+        else:
+            return np.nan
+
+def BC_subtype_func(row):
+# split the tumors into tumor subtypes (suggested by E. Jones)
+# 0: HR+/HER2-, 1: HR+/HER2+, 2: HR-/HER2+, 3: triple neg, HR+ is ER+ or PR+
+    is_HR_pos = (row['Sjoerd_PR'] == 1) or (row['Sjoerd_ER'] == 1)
+    if is_HR_pos and row['Sjoerd_HER2'] == 0:
+        return 0
+    elif is_HR_pos and row['Sjoerd_HER2'] == 1:
+        return 1
+    elif ~is_HR_pos and row['Sjoerd_HER2'] == 1:
+        return 2
+    elif ~is_HR_pos and row['Sjoerd_HER2'] == 0:
+        return 3
+    else:
+        return np.nan
+
+def custom_median(df):
+    # inclue NaN in the median calculation
+    return df.median(skipna=False)
+
+def Min_Ncluster_CC(cc_dir):
+    all_cc = glob.glob('{}/ConsensusClass*'.format(cc_dir))
+    dict_Nmincluster = {}
+    for ff in all_cc:
+        check = re.search('ConsensusClass_kmax(\w+)',os.path.basename(ff))
+        if check:
+            ncluster = check.group(1)
+            df_cs_class = pd.read_csv(ff)
+            df_cs_class.columns = ['ptid_side', 'cs_class']
+
+            # find the N of the smallest cluster in each cluster result for future analysis
+            N_mincluster = df_cs_class['cs_class'].value_counts().min()
+            dict_Nmincluster[ncluster] = N_mincluster
+        else:
+            print 'cannot determine Ncluster'
+            continue
+
+    df_Nmincluster = pd.DataFrame(dict_Nmincluster.items(), columns=['k','N_mincluster'])
+    df_Nmincluster['k'] = pd.to_numeric(df_Nmincluster['k'])
+    df_Nmincluster['N_mincluster'] = pd.to_numeric(df_Nmincluster['N_mincluster'])
+    return df_Nmincluster
+
+
+def Median_Cluster_Consensus(the_dir, dir_prefix):
+    all_dir = [d for d in glob.glob('{}/{}*'.format(the_dir, dir_prefix)) if os.path.isdir(d)]
+
+    df_medCC_all = pd.DataFrame()
+    for dd in all_dir:
+        # deteremine the cluster method and etc.
+        tmp = os.path.basename(dd).split('_')
+        if len(tmp) == 3:
+            dummy, cm, dm = tmp
+        else:
+            dummy, cm, cl, dm = tmp
+        cc_fname = '{}/ClusterConsensus.csv'.format(dd)
+        df_cc = pd.read_csv(cc_fname)
+        df_Nmincluster = Min_Ncluster_CC(dd)
+
+        check_nan = df_cc.ix[df_cc['clusterConsensus'].isnull(), 'k']
+        if not check_nan.empty:
+            check = check_nan.unique().min()
+            if check > 5.0:
+                mc = df_cc.groupby('k').agg({'clusterConsensus': custom_median})
+                mc = mc.reset_index()
+                mc['cluster_method'] = cm
+                if len(tmp) == 3:
+                    mc['cluster_method'] = cm
+                    mc['cluster_linkage'] = np.nan
+                    mc['dist_method'] = dm
+                else:
+                    mc['cluster_method'] = cm
+                    mc['cluster_linkage'] = cl
+                    mc['dist_method'] = dm
+                mc.rename(columns={'clusterConsensus': 'medianCC'}, inplace=True)
+                mc = pd.merge(mc,df_Nmincluster,how='left',on='k')
+                df_medCC_all = pd.concat([df_medCC_all, mc], ignore_index=True)
+            else:
+                continue
+        else:
+            mc = df_cc.groupby('k').agg({'clusterConsensus': custom_median})
+            mc = mc.reset_index()
+            if len(tmp) == 3:
+                mc['cluster_method'] = cm
+                mc['cluster_linkage'] = np.nan
+                mc['dist_method'] = dm
+            else:
+                mc['cluster_method'] = cm
+                mc['cluster_linkage'] = cl
+                mc['dist_method'] = dm
+            mc.rename(columns={'clusterConsensus': 'medianCC'}, inplace=True)
+            mc = pd.merge(mc, df_Nmincluster, how='left', on='k')
+            df_medCC_all = pd.concat([df_medCC_all, mc], ignore_index=True)
+
+    # print out the cluster setting for each Ncluster with the highest cluster consensus
+    df_tmp = df_medCC_all[df_medCC_all['N_mincluster'] > 5]
+    idx = df_tmp.groupby('k').apply(lambda df: df.medianCC.argmax())
+    df_oi = df_tmp.ix[idx,['k','N_mincluster','cluster_method','cluster_linkage','dist_method','medianCC']]
+
+    return df_medCC_all, df_oi

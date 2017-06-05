@@ -121,6 +121,7 @@ class ImageFeature:
         # get the numpy array from the image and make sure the images are in the right orientation
         connector = itk.PyBuffer[self._inputImageType]
         self._IG = image_geometry.ImageGeometry(self._inputImage)
+        print 'ImageFeature class: image voxel size {}'.format(self._IG.samplingRCS)
         tmp = connector.GetArrayFromImage(self._inputImage)
         self._inputImage_ndarray = np.zeros(tmp.shape,dtype=tmp.dtype)
         self._inputImage_ndarray[tmp != 0] = tmp[tmp !=0]

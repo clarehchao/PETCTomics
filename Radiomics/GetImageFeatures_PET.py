@@ -1,3 +1,4 @@
+#! /usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 Created on 9/29/16 3:12 PM
@@ -172,7 +173,7 @@ if __name__ == '__main__':
 
                     #TODO: instead of writing to a dataframe, consider write to the mongodb db
                     pt_features_data = pt_features_data.append(tmp_dict, ignore_index=True)
-                    print pt_features_data
+                    #print pt_features_data
 
             # monitor the memory usage
             mem_use.append(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
