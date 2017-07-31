@@ -57,6 +57,23 @@ def recur_func0(x):
     else:
         return 1
 
+def recur_func3(row):
+    if row['Recurrence'] is np.nan or row['Recurrence'] is None:
+        cr_recur = row['Recurrence Type Summary']
+        if cr_recur is np.nan or cr_recur.lower() == 'unknown':
+            print 'use CR data: {},{}'.format(row['Recurrence'], cr_recur)
+            return np.nan
+        if cr_recur.lower() == 'never disease free':
+            return 2
+        elif cr_recur == 'NONE/DISEASE FREE':
+            return 0
+        else:
+            return 1
+        # print 'use CR data: {},{},{}'.format(row['Recurrence'], cr_recur, val)
+    else:
+        return int(row['Recurrence'])
+
+
 def recur_dT(row):
     dT = pd.to_datetime(row['Last contact/death']) - pd.to_datetime(row['Date of Primary Dx'])
     if isinstance(dT, pd.tslib.NaTType):
@@ -257,3 +274,52 @@ def Median_Cluster_Consensus(the_dir, dir_prefix):
     df_oi = df_tmp.ix[idx,['k','N_mincluster','cluster_method','cluster_linkage','dist_method','medianCC']]
 
     return df_medCC_all, df_oi
+
+def func_feat_rank(the_df, df_info):
+    # convert each series to a dataframe and do a join with df_info to do necessary operation to return the values needed
+    the_df = pd.DataFrame(the_df)
+    the_df.reset_index(inplace=True)
+    col = the_df.columns
+    col_val = [ss for ss in col if ss is not 'index'][0]
+    the_df.rename(columns={'index':'feature', col_val:'values'}, inplace=True)
+    jdf = pd.merge(the_df, df_info, on='feature')
+    jdf['rank_metric'] = jdf['values'] * jdf['feature_cs_rank']
+
+    # srm = jdf.groupby('feature_cs_class')['rank_metric'].apply(sum)
+
+    srm_dict = jdf.groupby('feature_cs_class')['rank_metric'].apply(sum).to_dict()
+
+    for k,val in srm_dict.items():
+        colname = 'featCSclass_{}'.format(k)
+        srm_dict[colname] = srm_dict.pop(k)
+
+    return pd.Series(srm_dict)
+
+def ToCorrectYrDate(x):
+    # assume the input string is in the format of 'M/D/Y'
+    # print x, type(x)
+    if isinstance(x, basestring):
+        check = re.search('(\d+)/(\d+)/(\d+)',x)
+        if check:
+            mm, dd, yy = [check.group(ii) for ii in range(1,4)]
+            con_str = '/'
+            if int(yy) <= 68:
+                seq = (mm, dd, '19'+yy) #prefix the year with '19' instead of '20'
+                return con_str.join(seq)
+            else:
+                return x
+        else:
+            print 'string not in the assumed date format M/D/Y!'
+            return np.nan
+    else:
+        print 'not a string!'
+        return np.nan
+
+def To_Age_Dx(the_df):
+    dob = the_df['DOB']
+    date_dx = the_df['Date of Primary Dx']
+    if isinstance(dob, basestring) and isinstance(date_dx, basestring):
+        age_dx = ((pd.to_datetime(date_dx) - pd.to_datetime(dob)).days)/365.
+        return age_dx
+    else:
+        return np.nan

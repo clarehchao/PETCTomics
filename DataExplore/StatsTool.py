@@ -18,8 +18,8 @@ def proportion_table(the_df,var1,var2):
     df_tmp = df_tmp.dropna()
 
     the_observed_tab0 = pd.crosstab(df_tmp[var1], df_tmp[var2], margins=True)
-    the_observed_tab0.columns = df_tmp[var2].unique().tolist() + ['row_totals']
-    the_observed_tab0.index = df_tmp[var1].unique().tolist() + ['col_totals']
+    # the_observed_tab0.columns = df_tmp[var2].unique().tolist() + ['row_totals']
+    # the_observed_tab0.index = df_tmp[var1].unique().tolist() + ['col_totals']
     print the_observed_tab0
     print '\n'
 

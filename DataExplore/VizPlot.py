@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import re
 import math
+import numpy as np
 
 def featurelabel_redef(ss):
     if re.search(r'FOstats_(.+)', ss):
@@ -46,15 +47,19 @@ def featurename_redef_petmr(the_name):
     elif re.search(r'ShapeSize_(.*)_(.*)', the_name):
         return '_'.join(('SS',re.search(r'ShapeSize_(.*)_(.*)', the_name).group(1),re.search(r'ShapeSize_(.*)_(.*)', the_name).group(2)))
     else:
-        the_name
+        # print 'no other match, {}'.format(the_name)
+        return the_name
 
 def featurelabel_redef_petmr(ss):
+    petmr_pat = re.compile('PET_|MRI_')
     if re.search(r'FOstats_(.+)_(.+)', ss):
         return ' '.join(('First-order Stats', re.search(r'FOstats_(.+)_(.+)', ss).group(2).upper()))
     elif re.search(r'ShapeSize_(.+)_(.+)', ss):
         return ' '.join(('Shape and Size', re.search(r'ShapeSize_(.+)_(.+)', ss).group(2).upper()))
     elif re.search(r'texture_(.+)_(.+)', ss):
         return ' '.join(('GLCM texture features',re.search(r'texture_(.+)_(.+)', ss).group(2).upper()))
+    elif re.match(petmr_pat, ss):
+        return 'Modality-specific metrics'
     else:
         return ss
 
@@ -74,7 +79,7 @@ def ClustermapPlot(the_df, varname, fig_fname, img_feature_names,featname_def_fu
     # make sure there's no NANs
     df_sub = the_df.ix[:, ['cs_class', 'ptid_side'] + varname + img_feature_names]
     df_sub = df_sub.dropna()
-    print 'ClustermapPlot: df_sub.shape = {}'.format(df_sub.shape)
+    print 'ClustermapPlot: varialbe name {}, df_sub.shape = {}'.format(varname, df_sub.shape)
 
     df_sub = df_sub.sort_values('cs_class')
     the_csclass_sorted_ptidside = df_sub['ptid_side'].tolist()
@@ -100,9 +105,11 @@ def ClustermapPlot(the_df, varname, fig_fname, img_feature_names,featname_def_fu
 
     # categorical label for the image feature vars
     img_feature_labels = [featlabel_def_func(ss) for ss in img_feature_vars]
+    # print img_feature_labels
 
     # re-assign index names
     img_feature_vars_new = [featname_def_func(ss) for ss in img_feature_vars]
+    # print img_feature_vars_new
     df_final.index = img_feature_vars_new
 
     if idvar_color_pal_mode == 1:
@@ -115,6 +122,7 @@ def ClustermapPlot(the_df, varname, fig_fname, img_feature_names,featname_def_fu
         img_feature_labels_order = img_feature_lut.keys()
     elif idvar_color_pal_mode == 2:
         img_label_unique = list(set(img_feature_labels))
+        img_label_unique.remove('Modality-specific metrics')
         imf_label_modality = [re.search(r'(.+) (.+)', ss).group(2) for ss in img_label_unique if re.search(r'(.+) (.+)', ss)]
         df_tmp = pd.DataFrame({'imf_label': img_label_unique, 'modality': imf_label_modality})
         # find out the freq of the different type of image modalities
@@ -131,6 +139,9 @@ def ClustermapPlot(the_df, varname, fig_fname, img_feature_names,featname_def_fu
         a,b = idx_lst.index(1), idx_lst.index(5)
         idx_lst[b], idx_lst[a] = idx_lst[a], idx_lst[b]
         imf_label_order = df_tmp.loc[idx_lst]
+        df_tmp2 = pd.DataFrame([['Modality-specific metrics','other']], columns=['imf_label','modality'])
+        imf_label_order = imf_label_order.append(df_tmp2,ignore_index=True)
+        img_feature_pal = img_feature_pal + sns.color_palette(colorbrew_lib[ii+1], 1)
 
         img_feature_lut = dict(zip(imf_label_order['imf_label'].tolist(), img_feature_pal))
         img_feature_colors = pd.Series(img_feature_labels, index=df_final.index).map(img_feature_lut)
@@ -221,35 +232,44 @@ def ClustermapPlot(the_df, varname, fig_fname, img_feature_names,featname_def_fu
     # plt.show()
 
 
-def heatmap_plot(the_tab, row_labels, fig_name =''):
+def clustermap_plot_simple(the_tab, row_labels, row_label_title='', vminmax=[], mask=None, fig_name ='', value_title=''):
     """
-    plot the data in the_df in a heatmap for paper and publication
+    plot the data in the_df in a clustermap plot for paper and publication for simple tables
     :param the_df: 
     :return: 
     """
-
-    # TODO: plot a side bar to display feature cluster class
-    # ==> might have to do a clustermap instead of a heatmap
-    # sns.set()
-    # sns.set(font="monospace")
-    # ax = sns.heatmap(the_tab, annot=True, fmt='1.2f')
-    # plt.setp(ax.get_yticklabels(), rotation=0)
-    # plt.setp(ax.get_xticklabels(), rotation=90)
 
     sns.set()
     sns.set(font="monospace")
 
     # define the row colormap
     row_labels_pal = sns.light_palette('navy', n_colors=len(set(row_labels)), reverse=True)
-    row_labels_lut = dict(zip(map(str, list(set(row_labels))), row_labels_pal))
+    row_labels_lut = dict(zip(list(set(row_labels)), row_labels_pal))
     row_labels_colors = pd.Series(row_labels, index= the_tab.index).map(row_labels_lut)
     df_row_labels_colors = pd.DataFrame(dict(feature=row_labels_colors))
     df_row_labels_colors.columns = ['']
 
 
-    g = sns.clustermap(the_tab, col_cluster=False, row_cluster=False, row_colors = df_row_labels_colors,linewidths=0, xticklabels=True, yticklabels=True,figsize=(15, 15))
+    # hm_cmap = sns.light_palette((210, 90, 60), input="husl", as_cmap=True)
+    hm_cmap = sns.cubehelix_palette(8, start=.7, rot=-.9, as_cmap=True)
+    if mask is not None and vminmax:
+        g = sns.clustermap(the_tab, col_cluster=False, row_cluster=False, row_colors=df_row_labels_colors, cmap=hm_cmap,
+                           mask=mask, vmin=vminmax[0], vmax=vminmax[1], linewidths=0, xticklabels=True, yticklabels=True, figsize=(15, 15))
+    else:
+        g = sns.clustermap(the_tab, col_cluster=False, row_cluster=False, row_colors=df_row_labels_colors, cmap=hm_cmap,
+                           linewidths=0, xticklabels=True, yticklabels=True,figsize=(15, 15))
     plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0)
-    plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90)
+    plt.setp(g.ax_heatmap.get_xticklabels(), rotation=45)
+
+    row_labels_order = row_labels_lut.keys()
+    for label in row_labels_order:
+        g.ax_row_dendrogram.bar(0, 0, color=row_labels_lut[label], label=label, linewidth=0)
+    if row_label_title:
+        g.ax_row_dendrogram.legend(bbox_to_anchor=(1.4, 1.2), loc='best', title=row_label_title)
+
+    g.cax.set_position([0.15, .2, .03, .45])
+    g.cax.set_title(value_title)
+    g.ax_heatmap.set(xlabel='', ylabel='')
 
     if fig_name:
         g.savefig(fig_name)
@@ -258,3 +278,24 @@ def heatmap_plot(the_tab, row_labels, fig_name =''):
     else:
         plt.show()
 
+
+def heatmap_plot(the_tab, annot_labels=None, fig_name='', title=''):
+    sns.set()
+    sns.set(font="monospace")
+
+    if isinstance(annot_labels, np.ndarray):
+        ax = sns.heatmap(the_tab, annot=annot_labels, fmt='', cmap=sns.light_palette((210, 90, 60), input="husl", as_cmap=True))
+    else:
+        ax = sns.heatmap(the_tab, annot=True, fmt='1.2f',cmap=sns.light_palette((210, 90, 60), input="husl", as_cmap=True))
+
+    if title:
+        ax.set_title(title)
+    # plt.setp(ax.get_yticklabels(), rotation=0)
+    # plt.setp(ax.get_xticklabels(), rotation=90)
+
+    if fig_name:
+        plt.savefig(fig_name)
+        print 'save heatmap plot to {}'.format(fig_name)
+        plt.close()
+    else:
+        plt.show()
