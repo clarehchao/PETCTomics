@@ -81,7 +81,6 @@ if __name__ == "__main__":
 
     ids = [ii for ii in all_pt_id if ii != 88]  # don't have pt 88 json file for now...
     # ids ids = [1]
-
     # go through all .dmi in xxx/xxx/dce for each MRI_pt_id
     for pt_id in ids:
         series_dir = glob.glob('{}/{:0>3d}/*/*'.format(imdir, pt_id))[0]
@@ -99,8 +98,9 @@ if __name__ == "__main__":
             if ff.endswith('.dmi'):
                 input_file = os.path.join(dce_dir, ff)
                 output_file = os.path.join(out_dir, ff)
+                print input_file
                 try:
-                    anonymize(input_file, output_file)
+                    anonymize(input_file, output_file, remove_curves=False, remove_private_tags=False)
                 except InvalidDicomError:
                     print("{} is NOT a valid dicom file, may need force=True on read_file\r".format(input_file))
                 else:
@@ -120,8 +120,9 @@ if __name__ == "__main__":
         if ff.endswith('.dmi'):
             input_file = os.path.join(mask_dir, ff)
             output_file = os.path.join(mask_out_dir, ff)
+            print input_file
             try:
-                anonymize(input_file, output_file)
+                anonymize(input_file, output_file, remove_curves=False, remove_private_tags=False)
             except InvalidDicomError:
                 print("{} is NOT a valid dicom file, may need force=True on read_file\r".format(input_file))
             else:

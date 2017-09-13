@@ -113,6 +113,14 @@ def recur_type_func(x):
     elif re.search(r'DIST RECUR[\w\s.]*',x):
         return 2
 
+def BoneRecurOrNot_func(x):
+    if x is np.nan or x.lower().find('unknown') >= 0 or x.lower() == 'never disease free':
+        return np.nan
+    elif re.search(r'[\w\s.]BONE',x):
+        return 1
+    else:
+        return 0
+
 # def recur_type_func(x):
 #     if x is np.nan or x.lower() == 'unknown' or x.lower() == 'never disease free':
 #         return np.nan
@@ -142,6 +150,7 @@ def Tstage_func(x):
         else:
             return np.nan
 
+
 def Nstage_func(x):
     nstage_dict = {'N0': (['N0','NX','calc'],0), 'N1': (['N1'],1), 'N2': (['N2'],2), 'N3': (['N3'],3)}
 
@@ -161,6 +170,23 @@ def Nstage_func(x):
 
 def Overallstage_func(x):
     ostage_dict = {'0': (['0','calc'],0), '1': (['1'],1), '2': (['2'],2), '3': (['3'],3), '4':(['4'],4)}
+
+    # # add the numerical values to each or combined category
+    # ostage_k = ostage_dict.keys()
+    # for i in range(len(ostage_k)):
+    #     ostage_dict[ostage_k[i]] = (ostage_dict[ostage_k[i]], i)
+
+    if x is np.nan:
+        return x
+    else:
+        kk = str_find_dict(x, ostage_dict)
+        if kk != 0:
+            return ostage_dict[kk][1]
+        else:
+            return np.nan
+
+def Overallstage_func2(x):
+    ostage_dict = {'0': (['0','calc'],0), '1': (['1a','1b','2a'],1), '2': (['2b'],2), '3': (['3'],3), '4':(['4'],4)}
 
     # # add the numerical values to each or combined category
     # ostage_k = ostage_dict.keys()
@@ -323,3 +349,94 @@ def To_Age_Dx(the_df):
         return age_dx
     else:
         return np.nan
+
+
+def duration_func(x):
+    #     print 'Recurrence = {}'.format(x['Recurrence'])
+    #     print 'Dx: {}, Recur: {}, last contact: {}'.format(x['Date_Dx'], x['Date_Recur'], x['Date_lastcontactOrDeath'])
+    if x['Recurrence'] == 1:
+        if isinstance(x['Date_Dx'], pd.tslib.NaTType) is False and isinstance(x['Date_Recur'],
+                                                                              pd.tslib.NaTType) is False:
+            delta_time = (x['Date_Recur'] - x['Date_Dx']).days
+            return delta_time
+        else:
+            return np.nan
+    elif x['Recurrence'] == 0:
+        if isinstance(x['Date_Dx'], pd.tslib.NaTType) is False and isinstance(x['Date_lastcontactOrDeath'],
+                                                                              pd.tslib.NaTType) is False:
+            delta_time = (x['Date_lastcontactOrDeath'] - x['Date_Dx']).days
+            return delta_time
+        else:
+            return np.nan
+    else:
+        return np.nan
+
+
+def relapse_free_observed(row):
+    rf_dur = row['relapse_free_duration']
+    if np.isnan(rf_dur) == False:
+        if row['Recurrence'] == 1:
+            return 1
+        elif row['Recurrence'] == 0 and row['Alive/dead'] == 1:
+            return 0
+        elif row['Recurrence'] == 0 and row['Alive/dead'] == 0:
+            return 0
+        elif row['Recurrence'] == 2:
+            return np.nan
+        else:
+            return np.nan
+    else:
+        return np.nan
+
+
+def recurrence_free_observed(row):
+    rf_dur = row['relapse_free_duration']
+    if np.isnan(rf_dur) == False:
+        if row['Recurrence'] == 1:
+            return 1
+        elif row['Recurrence'] == 0 and row['Alive/dead'] == 1:
+            return 0
+        elif row['Recurrence'] == 0 and row['Alive/dead'] == 0:
+            return 1
+        elif row['Recurrence'] == 2:
+            return np.nan
+        else:
+            return np.nan
+    else:
+        return np.nan
+
+def BCHistology_func(row):
+    """
+    :param x: a dataframe with tumor histology column name as Tumor_Histology and Tumor Histology
+    :return: categroized histology described as below
+
+    special case: Adenocarcinoma => look for more info her2_outcome data column titled 'Tumor Histology' for more info, if not, return Nan
+
+    DCIS or LCIS: DCIS or LCIS
+    IDC: Invasive ductal
+    ILC: Invasive lobular
+    Mixed IDC and ILC: Mixed invasive ductal and lobular
+
+    """
+    tumor_hist = row['Tumor_Histology'] # tumor histology from Bolouri's studies
+    if tumor_hist is np.nan:
+        return np.nan
+    elif tumor_hist.lower() == 'adenocarcinoma':
+        # look for more info
+        tumor_hist_more = row['Tumor Histology']
+        if tumor_hist_more is np.nan:
+            return np.nan
+        elif tumor_hist_more.lower() in ['adc', 'adenocarcinoma']:
+            return np.nan
+        elif re.search('invasive ductal (.+)', tumor_hist_more.lower()) or re.search('idc (.+)', tumor_hist_more.lower()):
+            return 'IDC'
+        elif re.search('invasive lobular (.+)', tumor_hist_more.lower()) or re.search('ilc (.+)', tumor_hist_more.lower()):
+            return 'ILC'
+    elif tumor_hist.lower() in ['invasive ductal', 'idc']:
+        return 'IDC'
+    elif tumor_hist.lower() in ['invasive lobular', 'ilc']:
+        return 'ILC'
+    elif tumor_hist.lower() == 'mixed invasive ductal and lobular':
+        return 'Mixed IDC and ILC'
+    elif tumor_hist.lower() in ['dcis', 'lcis']:
+        return 'DCIS or LCIS'

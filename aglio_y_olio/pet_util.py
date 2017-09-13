@@ -48,6 +48,7 @@ def get_SUV_multiplier(pet_series):
     tag_SeriesTime                               = Tag(0x0008,0x0031)
     tag_Radionuclide_Half_life                   = Tag(0x0018,0x1075)
     rad_pharm_seq        = info[tag_Radiopharmaceutical_Information_Sequence]
+
     try:
         rad_total_dose_field = rad_pharm_seq[0][tag_Radionuclide_Total_Dose]
     except:
@@ -55,6 +56,7 @@ def get_SUV_multiplier(pet_series):
         return 0
     rad_total_dose       = rad_total_dose_field.value
     rad_half_life = rad_pharm_seq[0][tag_Radionuclide_Half_life].value  # unit: seconds
+    print 'radionuclide total dose: {}'.format(rad_total_dose)
 
     # decay corrected the injected dose (or total dose)
     rad_pharm_start_time = rad_pharm_seq[0][tag_Radiopharmaceutical_start_time].value

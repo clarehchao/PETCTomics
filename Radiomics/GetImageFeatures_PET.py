@@ -44,15 +44,23 @@ if __name__ == '__main__':
 
     # image standardization => rescale the raw image into 0-Nbin range
     # img_norm_Nbin = 256
-    img_norm_Nbin = [32,64,128]
+    # img_norm_Nbin = [32,64,128]
     # define the texture features list to compute
-    feature_list = ['autocorrelation', 'cluster_prominence', 'cluster_shade', 'cluster_tendency', 'contrast', 'correlation',
-                    'diff_entropy', 'dissimilarity', 'energy', 'entropy', 'homogeneity1', 'homogeneity2', 'idmn',
-                    'idn', 'inv_var', 'maxprob', 'sum_avg', 'sum_entropy', 'sum_var']
+    # feature_list = ['autocorrelation', 'cluster_prominence', 'cluster_shade', 'cluster_tendency', 'contrast', 'correlation',
+    #                 'diff_entropy', 'dissimilarity', 'energy', 'entropy', 'homogeneity1', 'homogeneity2', 'idmn',
+    #                 'idn', 'inv_var', 'maxprob', 'sum_avg', 'sum_entropy', 'sum_var']
+
+    feature_list = ['autocorrelation', 'cluster_prominence', 'cluster_shade', 'cluster_tendency', 'contrast',
+                    'correlation','diff_entropy', 'dissimilarity', 'energy', 'entropy', 'homogeneity1', 'homogeneity2',
+                    'idmn','idn', 'inv_var', 'maxprob', 'sum_avg', 'sum_entropy', 'sum_var', 'imc1', 'imc2', 'diff_avg',
+                    'diff_var', 'avg_intensity', 'sum_squares']
 
     # parameters for the glcm texture analysis
     Rneighbor = 1
-    glcm_Nbin = [32,64,128]
+    # glcm_Nbin = [32,64,128]
+    # glcm_Nbin = [128]
+    glcm_bin_width = [0.1]
+    proc_version = 2
 
     the_img_spacingRCS = np.array([2.,2.,2.]) #in millimeter
     fragmented_dcm_ids = [16,17,18,22,25,27,30]
@@ -151,42 +159,44 @@ if __name__ == '__main__':
             theimf = ImF.ImageFeature(final_itk_img,feature_list,final_itk_mask,'dict')
 
             pt_features_data = pd.DataFrame()
-            for aa in img_norm_Nbin:
-                for bb in glcm_Nbin:
-                    print 'img norm Nbin: {}, glcm Nbin: {}'.format(aa,bb)
-                    theimf._compute_texture_features(Rneighbor,GSnorm_Nbin=aa,glcm_Nbin=bb)
-                    theimf._compute_first_order_stats()
-                    theimf._compute_shape_size_features()
+            for bb in glcm_bin_width:
+                print 'bin width: {}'.format(bb)
+                theimf._compute_texture_features(Rneighbor, binWidth=bb)
+                theimf._compute_first_order_stats(binWidth=bb)
+                theimf._compute_shape_size_features()
 
-                    tmp_dict = theimf.feature_output
-                    tmp_dict['pt_id'] = pt_id
-                    tmp_dict['pt_mrn'] = pt_mrn
-                    tmp_dict['pt_accession_num'] = pt_acc_num
-                    tmp_dict['pet_series_fdir'] = pet_fdir
-                    tmp_dict['glcm_Nbin'] = bb
-                    tmp_dict['img_norm_Nbin'] = aa
-                    tmp_dict['organ_mask'] = 'breast tumor'
-                    tmp_dict['process_name'] = 'GetImageFeature_VOI'
-                    tmp_dict['process_version'] = '1.0'
-                    tmp_dict['voxel_size_mm3'] = [tuple(the_img_spacingRCS)] * len(tmp_dict)
-                    tmp_dict['breast_side'] = breast_side
+                tmp_dict = theimf.feature_output
+                tmp_dict['pt_id'] = pt_id
+                tmp_dict['pt_mrn'] = pt_mrn
+                tmp_dict['pt_accession_num'] = pt_acc_num
+                tmp_dict['pet_series_fdir'] = pet_fdir
+                tmp_dict['bin_width'] = bb
+                tmp_dict['organ_mask'] = 'breast tumor'
+                tmp_dict['process_name'] = 'GetImageFeature_VOI'
+                tmp_dict['process_version'] = proc_version
+                tmp_dict['voxel_size_mm3'] = [tuple(the_img_spacingRCS)] * len(tmp_dict)
+                tmp_dict['breast_side'] = breast_side
+                # print theimf.feature_output
 
-                    #TODO: instead of writing to a dataframe, consider write to the mongodb db
-                    pt_features_data = pt_features_data.append(tmp_dict, ignore_index=True)
-                    #print pt_features_data
+                #TODO: instead of writing to a dataframe, consider write to the mongodb db
+                pt_features_data = pt_features_data.append(tmp_dict, ignore_index=True)
+                # print pt_features_data
 
             # monitor the memory usage
             mem_use.append(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
 
             pt_features_data['pt_id'] = pt_features_data['pt_id'].astype('int')
-            dataoutfname = '{}/PET_features_data_{}_{}.json'.format(save_dir,pt_id,breast_side)
+            dataoutfname = '{}/PET_features_data_v{}_{}_{}.json'.format(save_dir,proc_version,pt_id,breast_side)
             pt_features_data.to_json(dataoutfname)
 
     # save the memory log
-    outfile = open('{}/PET_Features_memory_usage_{}_{}.txt'.format(save_dir,pid_start,pid_end), 'w')
+    outfile = open('{}/PET_Features_v{}_memory_usage_{}_{}.txt'.format(save_dir,proc_version, pid_start,pid_end), 'w')
     outfile.write('\n'.join([str(s) for s in mem_use]))
     outfile.close()
 
+#TODO:
+# check on 79_R and make sure the mask exists!!!! ==> MRI has a 79_R mask but it doesn't seem to cover the breast section
+# one can run ImageDisplay_MRI.py with 79 80 1 as the input arg to test to see if the image and mask make sense
 
 # TESTING the dicom series vs MeVisLab NRRD files
 # pet_itk_fname1 = '/data/francgrp1/TMP/MeVisOriginObfuscation/084_correct_sub_voxel_shift_ON.nrrd'

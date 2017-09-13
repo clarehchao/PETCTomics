@@ -38,9 +38,11 @@ class ImageFeature:
         self._df_feature_output = None
         self._inputpix_min = None
         self._inputpix_max = None
-        self._glcm_bin_width = 5. #default, pixel intensity bin width
-        self._glcm_Nbin = 256 #default, number of gray level bins
-        self._glcm_GSnorm_Nbin = 256 #default number of gray level to standardize the input image intensity
+        self._maskpix_min = None
+        self._maskpix_max = None
+        self._bin_width = 0.1 #default
+        self._Nbin = 128 #Nbin
+        # self._glcm_GSnorm_Nbin = 256 #default number of gray level to standardize the input image intensity
         self._IG = None
         self._maskImage_ndarray = None
         self._inputImage_ndarray = None
@@ -125,8 +127,9 @@ class ImageFeature:
         tmp = connector.GetArrayFromImage(self._inputImage)
         self._inputImage_ndarray = np.zeros(tmp.shape,dtype=tmp.dtype)
         self._inputImage_ndarray[tmp != 0] = tmp[tmp !=0]
-        # self._inputpix_min = np.amin(self._inputImage_ndarray)
-        # self._inputpix_max = np.amax(self._inputImage_ndarray)
+        self._inputpix_min = np.amin(self._inputImage_ndarray)
+        self._inputpix_max = np.amax(self._inputImage_ndarray)
+        print '::ImageFeature:: input image min and max: {}, {}'.format(self._inputpix_min, self._inputpix_max)
         # del connector
         # del tmp
 
@@ -145,35 +148,47 @@ class ImageFeature:
             self._maskImage_ndarray[tmp != 0] = tmp[tmp != 0]
             self._inside_pixel_val = int(np.unique(self._maskImage_ndarray[np.nonzero(self._maskImage_ndarray)])[0])
             self._maskImage_ndarray = self._maskImage_ndarray.astype('bool')
+
+            # compute the image min and max within the mask
+            self._maskpix_min = np.amin(self._inputImage_ndarray[self._maskImage_ndarray])
+            self._maskpix_max = np.amax(self._inputImage_ndarray[self._maskImage_ndarray])
+            print '::ImageFeature:: mask min and max: {}, {}'.format(self._maskpix_min, self._maskpix_max)
             # del connector
             # del tmp
 
         print '::ImageFeature:: complete get_image_info!'
 
 
-    def _compute_texture_features(self,Rneighbor,GSnorm_Nbin=None,glcm_Nbin=None):
+    def _compute_texture_features(self, Rneighbor, binWidth=None):
         """Compute the grey-level co-occurrence matrix in 3D fashion
            Assume inputImage and inputMask are in ITK format
         """
-        # Rescale the ITK volume into the range of 0 - Nbin
-        if GSnorm_Nbin:
-            self._glcm_GSnorm_Nbin = GSnorm_Nbin
-        inputImage_GSnorm = itkif.ITKStandardizeImageIntensity(self._inputImage,self._glcm_GSnorm_Nbin)
+        # # Rescale the ITK volume into the range of 0 - Nbin
+        # if GSnorm_Nbin:
+        #     self._glcm_GSnorm_Nbin = GSnorm_Nbin
+        # inputImage_GSnorm = itkif.ITKStandardizeImageIntensity(self._inputImage,self._glcm_GSnorm_Nbin)
 
         # set up itk glcm filter
-        ImageToCoOccuranceType = itk.ScalarImageToCooccurrenceMatrixFilter[type(inputImage_GSnorm)]
+        # ImageToCoOccuranceType = itk.ScalarImageToCooccurrenceMatrixFilter[type(inputImage_GSnorm)]
+
+        ImageToCoOccuranceType = itk.ScalarImageToCooccurrenceMatrixFilter[type(self._inputImage)]
         glcmGenerator = ImageToCoOccuranceType.New()
         # print glcmGenerator.GetMin(), glcmGenerator.GetMax(),glcmGenerator.GetNumberOfBinsPerAxis()
-        # self._glcm_Nbin = glcmGenerator.GetNumberOfBinsPerAxis()
+        # self._Nbin = glcmGenerator.GetNumberOfBinsPerAxis()
 
-        #TODO: figure out how to set up the glcm bin and grey-scale quantification correctly
-        # self._glcm_Nbin = int(np.ceil((self._inputpix_max - self._inputpix_min)/self._glcm_bin_width))
-        if glcm_Nbin:
-            self._glcm_Nbin = glcm_Nbin
-        glcmGenerator.SetNumberOfBinsPerAxis(self._glcm_Nbin)
-        # glcmGenerator.SetPixelValueMinMax(int(self._inputpix_min),int(self._inputpix_max))
-        glcmGenerator.SetPixelValueMinMax(0,self._glcm_GSnorm_Nbin)
-        glcmGenerator.SetInput(inputImage_GSnorm)
+        #binWidth is more robust than setting the Nbin as sometimes certain Nbin doesn't produce enough quantification for a glcm
+        if binWidth:
+            self._bin_width = binWidth
+        self._Nbin = int(np.round(np.ceil((self._inputpix_max - self._inputpix_min)/self._bin_width)))
+        # self._Nbin = int(np.round((self._maskpix_max - self._maskpix_min) / self._bin_width))
+        print '::IMageFeature:: set the GLCM Nbin to {}'.format(self._Nbin)
+
+        glcmGenerator.SetNumberOfBinsPerAxis(self._Nbin)
+        # glcmGenerator.SetPixelValueMinMax(int(self._maskpix_min), int(self._maskpix_max))
+        glcmGenerator.SetPixelValueMinMax(int(self._inputpix_min),int(self._inputpix_max))
+        # glcmGenerator.SetPixelValueMinMax(0,self._glcm_GSnorm_Nbin)
+        # glcmGenerator.SetInput(inputImage_GSnorm)
+        glcmGenerator.SetInput(self._inputImage)
         if self._cast_maskImage:
             glcmGenerator.SetMaskImage(self._cast_maskImage)
             if self._inside_pixel_val != 1:
@@ -185,7 +200,7 @@ class ImageFeature:
         neighborhood.SetRadius(Rneighbor)
         centerIndx = neighborhood.GetCenterNeighborhoodIndex()
 
-        self._GLCM = np.zeros((centerIndx,self._glcm_Nbin,self._glcm_Nbin))
+        self._GLCM = np.zeros((centerIndx,self._Nbin,self._Nbin))
         offset_list = []
         dict_foutput_tmp = []
         for d in range(centerIndx):
@@ -200,6 +215,7 @@ class ImageFeature:
                 for j in range(0, itkhistogram.GetSize()[1]):
                     self._GLCM[d,i,j] = itkhistogram.GetFrequency((i, j))
 
+            # print 'd = {}, glcm: {}'.format(d, self._GLCM[d] / np.sum(self._GLCM[d]))
             if d == 0:
                 thegtf = gtf.GLCMTextureFeature(self._GLCM[d], self._GLCM_feature_list)
             else:
@@ -207,6 +223,7 @@ class ImageFeature:
 
             thegtf.compute_features()
             thefeature = thegtf.feature_dict
+
 
             if d == 0:
                 if self._foutput_format == 'df':
@@ -220,6 +237,7 @@ class ImageFeature:
                         dict_foutput_tmp[k].append(val[0])
                 elif self._foutput_format == 'dict':
                     for k, val in thefeature.items():
+                        # print k, val
                         self._dict_feature_output[k].append(val[0])
             # del thegtf
             # del thefeature
@@ -277,25 +295,42 @@ class ImageFeature:
             self._dict_feature_output['ShapeSize_surface2volratio'] = surf_area_cm2 / vol_cm3
 
         # maximum 3D euclidean distance (or diameter?)
-        kk,ii,jj = np.where(self._maskImage_ndarray == True)
+        print '::ImageFeature:: # of verts is {}'.format(len(verts))
+        eucdis_tmp = []
+        for n in range(len(verts) - 1):
+            px1 = verts[n + 1:]
+            px2 = np.tile(verts[n], (px1.shape[0], 1))
+            eucdis = np.sqrt(np.sum((px1 - px2) ** 2, axis=1))
+            eucdis_tmp.append(np.amax(eucdis))
+        max_euc_dis = max(eucdis_tmp)
+        # print '::ImageFeature:: max_euc_dis based on mesh verts: {}'.format(max_euc_dis)
+        if self._foutput_format == 'df':
+            self._df_feature_output['ShapeSize_max_euc_dis'] = max_euc_dis
+        elif self._foutput_format == 'dict':
+            self._dict_feature_output['ShapeSize_max_euc_dis'] = max_euc_dis
 
-        # skip computing max euclidean distance if the mask is too big such as including skin and etc.
-        if len(kk) > 300000 and vol_cm3 > 70.:
-            print '::ImageFeature:: compute_shape_size_feature, tumor mask is TOO big (vol: {} ml)! will not compute euc max distance :/'.format(vol_cm3)
-        else:
-            print '::ImageFeature:: max euc distance # of voxels to go through: {}, vol = {} cm3'.format(len(kk),vol_cm3)
-            eucdis_tmp = np.zeros((len(kk),1))
-            for n in range(len(kk)-1):
-                px1 = np.column_stack((kk[n+1:],ii[n+1:],jj[n+1:]))
-                px2 = np.tile(np.array([kk[n],ii[n],jj[n]]),(px1.shape[0],1))
-                vox_size_tile = np.tile(vox_size_SRC,(px1.shape[0],1))
-                eucdis = np.sqrt(np.sum(((px1 - px2)*vox_size_tile)**2,axis=1))
-                eucdis_tmp[n] = np.amax(eucdis)
-            max_euc_dis = np.amax(eucdis_tmp)
-            if self._foutput_format == 'df':
-                self._df_feature_output['ShapeSize_max_euc_dis'] = max_euc_dis
-            elif self._foutput_format == 'dict':
-                self._dict_feature_output['ShapeSize_max_euc_dis'] = max_euc_dis
+
+        # kk,ii,jj = np.where(self._maskImage_ndarray == True)
+        # print '::ImageFeature:: len(kk) = {}'.format(len(kk))
+
+        # # skip computing max euclidean distance if the mask is too big such as including skin and etc.
+        # if len(kk) > 300000 and vol_cm3 > 70.:
+        #     print '::ImageFeature:: compute_shape_size_feature, tumor mask is TOO big (vol: {} ml)! will not compute euc max distance :/'.format(vol_cm3)
+        # else:
+        #     print '::ImageFeature:: max euc distance # of voxels to go through: {}, vol = {} cm3'.format(len(kk),vol_cm3)
+        #     eucdis_tmp = np.zeros((len(kk),1))
+        #     for n in range(len(kk)-1):
+        #         px1 = np.column_stack((kk[n+1:],ii[n+1:],jj[n+1:]))
+        #         px2 = np.tile(np.array([kk[n],ii[n],jj[n]]),(px1.shape[0],1))
+        #         vox_size_tile = np.tile(vox_size_SRC,(px1.shape[0],1))
+        #         eucdis = np.sqrt(np.sum(((px1 - px2)*vox_size_tile)**2,axis=1))
+        #         eucdis_tmp[n] = np.amax(eucdis)
+        #     max_euc_dis = np.amax(eucdis_tmp)
+        #     print '::ImageFeature:: mac euc dis (original voxels) = {}'.format(max_euc_dis)
+        #     if self._foutput_format == 'df':
+        #         self._df_feature_output['ShapeSize_max_euc_dis'] = max_euc_dis
+        #     elif self._foutput_format == 'dict':
+        #         self._dict_feature_output['ShapeSize_max_euc_dis'] = max_euc_dis
 
         # R is the radius of the sphere with the same volume as the tumor
         tumor_sphere_R = (3*vol_cm3/(4*np.pi))**(1./3)
@@ -306,10 +341,10 @@ class ImageFeature:
 
         print '::ImageFeature:: complete compute_shape_size_features!'
 
-    def _compute_first_order_stats(self,Nbin=32):
+    def _compute_first_order_stats(self,binWidth=None):
         """
             compute first-order statistics of the data
-            Nbin: the number of discrete intensity levels to compute the data histogrm, default Nbin = 32
+            Nbin: the number of discrete intensity levels to compute the data histogrm, default Nbin = 128
         """
         if self._maskImage_ndarray is None:  # no mask is defined, so use all the entire image data
             data = self._inputImage_ndarray.flatten()
@@ -317,8 +352,14 @@ class ImageFeature:
             data = self._inputImage_ndarray[self._maskImage_ndarray]
 
         #TODO: here is the bottleneck when data is all zero's
-        data_stats = dict(ss.describe(data)._asdict())
-        data_stats.pop('nobs') # delete the dict entry of 'nobs'
+        # data_stats = dict(ss.describe(data)._asdict())
+        # data_stats.pop('nobs')  # delete the dict entry of 'nobs'
+        data_stats = {}
+        data_stats['minmax'] = (np.min(data), np.max(data))
+        data_stats['mean'] = np.mean(data)
+        data_stats['variance'] = np.var(data)
+        data_stats['kurtosis'] = ss.kurtosis(data, fisher=False)
+        data_stats['skewness'] = ss.skew(data)
 
         # make sure each key is prefixed with 'FOstats_'
         for k, val in data_stats.items():
@@ -332,8 +373,20 @@ class ImageFeature:
 
         # compute histogram-related stats
         # density = True ==> the integral of p_data = 1.0, i.e. np.sum(p_data*np.diff(p_bin)) = 1.0
-        p_data,p_bin = np.histogram(data,bins=Nbin,density=True)
-        tmp = np.sum(p_data*ma.log2(p_data))
+        # p_data,p_bin = np.histogram(data,bins=Nbin,density=True)
+
+        if binWidth:
+            self._bin_width = binWidth
+        lowBound = np.min(data) - (np.min(data) % self._bin_width)
+        # Add + binwidth to ensure the maximum value is included in the range generated by numpu.arange
+        highBound = np.max(data) + self._bin_width
+
+        bin_edge = np.arange(lowBound,highBound,self._bin_width)
+        p_data = np.histogram(data, bin_edge)[0]
+        eps = np.spacing(1)
+        p_data = p_data / (np.sum(p_data) + eps)
+
+        tmp = (-1)*np.sum(p_data*ma.log2(p_data))
         if tmp is ma.masked:
             print '::Oh NO O_O:: FOstats_entropy is a masked constant!!'
         else:

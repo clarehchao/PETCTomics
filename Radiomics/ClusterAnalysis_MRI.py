@@ -46,8 +46,8 @@ clinical_colname = ['Laterality','PRIMARY_ID','MRN','CR_AccessionSeq','MRI_VOLUM
 df_clinicaldata = df_mri_pet_imgfeat.ix[:,clinical_colname]
 
 # read all the Image Feature data
-# all_jsons = glob.glob('{}/*.json'.format(feature_data_dir))
-all_jsons = glob.glob('{}/MRI*.json'.format(feature_data_dir))
+n_version = 2
+all_jsons = glob.glob('{}/MRI*v{}*.json'.format(feature_data_dir, n_version))
 df_img_features = pd.DataFrame()
 for fj in all_jsons:
     df = pd.read_json(fj,dtype={'pt_id':str,'pt_mrn':str}) #make sure pt_id and MRN are read in as string
@@ -59,64 +59,103 @@ df_img_clinical_data = pd.merge(df_img_features,df_clinicaldata,how='left',left_
 
 # select the data of interest
 # clustermap for each time point feature data
-# # the_tp = '1'
-# the_tp = '2'
-# the_glcm_Nbin = 128
 
 # drop un-needed columns
-features_drop_list = ['CR_AccessionSeq','MRI_VOLUME_TUM_BLU','MRI_VOLUME_TUMOR','MRI_VOLUME_WHITE','MRI_VOLUME_RED',
-                     'MRI_VOLUME_GREEN','MRI_VOLUME_PURPLE','MRI_VOLUME_BLUE','MRI_SERROI_SER_MEAN','MRI_PE2ROI_PE2_PEAK',
-                     'MRI_SERROI_PE2_PEAK','MRI_PE2ROI_SER_MEAN','Marjan_Size (mm)','organ_mask', 'process_name', 'process_version',
-                     'texture_glcm_offset', 'dce_MRI_time_point','dce_series_dmi_fname', 'glcm_Nbin', 'img_norm_Nbin', 'pt_id',
-                     'pt_accession_num', 'pt_mrn','SUV max']
+# features_drop_list = ['CR_AccessionSeq','MRI_VOLUME_TUM_BLU','MRI_VOLUME_TUMOR','MRI_VOLUME_WHITE','MRI_VOLUME_RED',
+#                      'MRI_VOLUME_GREEN','MRI_VOLUME_PURPLE','MRI_VOLUME_BLUE','MRI_SERROI_SER_MEAN','MRI_PE2ROI_PE2_PEAK',
+#                      'MRI_SERROI_PE2_PEAK','MRI_PE2ROI_SER_MEAN','Marjan_Size (mm)','organ_mask', 'process_name', 'process_version',
+#                      'texture_glcm_offset', 'dce_MRI_time_point','dce_series_dmi_fname', 'glcm_Nbin', 'img_norm_Nbin', 'pt_id',
+#                      'pt_accession_num', 'pt_mrn','SUV max']
+
+features_drop_list = ['CR_AccessionSeq','Marjan_Size (mm)','organ_mask', 'process_name', 'process_version',
+                      'texture_glcm_offset', 'dce_MRI_time_point','dce_series_dmi_fname',
+                      'pt_id','pt_accession_num', 'pt_mrn']
 
 # data munging: get the average of all the features values (over all offsets) and split minmax into separate variables
-texture_cols = ['texture_autocorrelation', 'texture_cluster_prominence', 'texture_cluster_shade',
-                'texture_cluster_tendency', 'texture_contrast', 'texture_correlation', 'texture_diff_entropy',
-                'texture_dissimilarity','texture_energy', 'texture_entropy', 'texture_homogeneity1', 'texture_homogeneity2',
-                'texture_idmn','texture_idn', 'texture_inv_var', 'texture_maxprob', 'texture_sum_avg', 'texture_sum_entropy',
-                'texture_sum_var']
+tx_feature_list = ['autocorrelation', 'cluster_prominence', 'cluster_shade', 'cluster_tendency', 'contrast',
+                    'correlation','diff_entropy', 'dissimilarity', 'energy', 'entropy', 'homogeneity1', 'homogeneity2',
+                    'idmn','idn', 'inv_var', 'maxprob', 'sum_avg', 'sum_entropy', 'sum_var', 'imc1', 'imc2', 'diff_avg',
+                    'diff_var', 'avg_intensity', 'sum_squares']
 
+texture_cols = ['texture_{}'.format(ss) for ss in tx_feature_list]
 the_tp_list = df_img_features['dce_MRI_time_point'].unique().tolist()
-the_glcmNbin_list = df_img_features['glcm_Nbin'].unique().tolist()
 
 for the_tp in the_tp_list:
-    for the_glcm_Nbin in the_glcmNbin_list:
-        df_tmp = df_img_clinical_data[(df_img_clinical_data['dce_MRI_time_point'] == the_tp) & (df_img_clinical_data['glcm_Nbin'] == the_glcm_Nbin)]
+    df_tmp = df_img_clinical_data[(df_img_clinical_data['dce_MRI_time_point'] == the_tp)]
 
-        # combine primary_id with breast_side
-        # Need to make a copy of df_tmp so SettingWithCopyException doesn't appear
-        df_tp_glcmNbin = df_tmp.copy()
+    # combine primary_id with breast_side
+    # Need to make a copy of df_tmp so SettingWithCopyException doesn't appear
+    df_tp = df_tmp.copy()
 
-        # NOTE: must use 'pt_id' not 'PRIMARY_ID' since 'PRIMARY_ID' numbering is different from the pt_id
-        df_tp_glcmNbin['ptid_side'] = df_tmp.apply(lambda x: '{}_{}'.format(x['pt_id'],x['Laterality']),axis=1)
-        # print df_tp_glcmNbin.loc[df_tp_glcmNbin['pt_id'] == '96','ptid_side']
+    # NOTE: must use 'pt_id' not 'PRIMARY_ID' since 'PRIMARY_ID' numbering is different from the pt_id
+    df_tp['ptid_side'] = df_tmp.apply(lambda x: '{}_{}'.format(x['pt_id'],x['Laterality']),axis=1)
 
-        # drop un-needed features for optimal N for future analysis
-        df_tp_glcmNbin = df_tp_glcmNbin.drop(features_drop_list,axis=1)
+    # drop un-needed features for optimal N for future analysis
+    df_tp = df_tp.drop(features_drop_list,axis=1)
 
-        for tc in texture_cols:
-            df_tp_glcmNbin[tc +'_avg'] = df_tp_glcmNbin[tc].apply(np.mean)
-            df_tp_glcmNbin = df_tp_glcmNbin.drop(tc,axis=1)
+    for tc in texture_cols:
+        df_tp[tc] = df_tp[tc].apply(lambda x: np.nan if any(np.isnan(x)) else x)
+        df_tp[tc +'_avg'] = df_tp[tc].apply(np.nanmean)
+        df_tp = df_tp.drop(tc,axis=1)
 
-        df_tp_glcmNbin['FOstats_min'] = df_tp_glcmNbin['FOstats_minmax'].apply(lambda x: x[0])
-        df_tp_glcmNbin['FOstats_max'] = df_tp_glcmNbin['FOstats_minmax'].apply(lambda x: x[1])
-        df_tp_glcmNbin = df_tp_glcmNbin.drop('FOstats_minmax',axis=1)
+    df_tp['FOstats_min'] = df_tp['FOstats_minmax'].apply(lambda x: x[0])
+    df_tp['FOstats_max'] = df_tp['FOstats_minmax'].apply(lambda x: x[1])
+    df_tp = df_tp.drop('FOstats_minmax',axis=1)
 
-        # # drop any NaN
-        # print df_tp_glcmNbin.shape
-        # test = df_tp_glcmNbin[df_tp_glcmNbin.isnull().any(axis=1)]
-        # print test.ix[31,:].tolist()
+    df_tp['voxel_size_mm3'] = df_tp['voxel_size_mm3'].apply(lambda x: x[0])
 
-        df_tp_glcmNbin = df_tp_glcmNbin.dropna()
-        print 'the_tp: {}, glcm_Nbin: {}, df.shape: {}'.format(the_tp, the_glcm_Nbin, df_tp_glcmNbin.shape)
+    # separate the patient clinical data into Triple-Neg vs Non Triple-Neg
+    df_tp['TripleNeg'] = df_tp.apply(lambda x: 1.0 if x['Sjoerd_ER'] == 0.0 and x['Sjoerd_HER2'] == 0.0 and x['Sjoerd_PR'] == 0.0 else 0.0, axis=1)
 
-        # separate the patient clinical data into Triple-Neg vs Non Triple-Neg
-        df_tp_glcmNbin['TripleNeg'] = df_tp_glcmNbin.apply(lambda x: 1.0 if x['Sjoerd_ER'] == 0.0 and x['Sjoerd_HER2'] == 0.0 and x['Sjoerd_PR'] == 0.0 else 0.0, axis=1)
-        fdir = '{}/her2_Analysis/MRI/IsoVoxel_TP{}_GLCMBIN{}'.format(rootdir,the_tp,the_glcm_Nbin)
-        makedirs(fdir)
-        tp_glcmNbin_fname = '{}/MRIdataAll_tp{}_Nbin{}.csv'.format(fdir,the_tp,the_glcm_Nbin)
-        df_tp_glcmNbin.to_csv(tp_glcmNbin_fname)
+    the_glcm_bin_width = df_tp['glcm_bin_width'].unique()[0]
+    fdir = '{}/her2_Analysis/MRI/IsoVoxel_binWidth{}'.format(rootdir,the_glcm_bin_width)
+    makedirs(fdir)
+    tp_fname = '{}/MRIdataAll_tp{}_binWidth{}.csv'.format(fdir,the_tp,the_glcm_bin_width)
+    df_tp.to_csv(tp_fname)
+
+# # the_tp_list = df_img_features['dce_MRI_time_point'].unique().tolist()
+# # the_glcmNbin_list = df_img_features['glcm_Nbin'].unique().tolist()
+#
+# for the_tp in the_tp_list:
+#     for the_glcm_Nbin in the_glcmNbin_list:
+#         df_tmp = df_img_clinical_data[(df_img_clinical_data['dce_MRI_time_point'] == the_tp) & (
+#         df_img_clinical_data['glcm_Nbin'] == the_glcm_Nbin)]
+#
+#         # combine primary_id with breast_side
+#         # Need to make a copy of df_tmp so SettingWithCopyException doesn't appear
+#         df_tp_glcmNbin = df_tmp.copy()
+#
+#         # NOTE: must use 'pt_id' not 'PRIMARY_ID' since 'PRIMARY_ID' numbering is different from the pt_id
+#         df_tp_glcmNbin['ptid_side'] = df_tmp.apply(lambda x: '{}_{}'.format(x['pt_id'], x['Laterality']), axis=1)
+#         # print df_tp_glcmNbin.loc[df_tp_glcmNbin['pt_id'] == '96','ptid_side']
+#
+#         # drop un-needed features for optimal N for future analysis
+#         df_tp_glcmNbin = df_tp_glcmNbin.drop(features_drop_list, axis=1)
+#
+#         for tc in texture_cols:
+#             df_tp_glcmNbin[tc + '_avg'] = df_tp_glcmNbin[tc].apply(np.mean)
+#             df_tp_glcmNbin = df_tp_glcmNbin.drop(tc, axis=1)
+#
+#         df_tp_glcmNbin['FOstats_min'] = df_tp_glcmNbin['FOstats_minmax'].apply(lambda x: x[0])
+#         df_tp_glcmNbin['FOstats_max'] = df_tp_glcmNbin['FOstats_minmax'].apply(lambda x: x[1])
+#         df_tp_glcmNbin = df_tp_glcmNbin.drop('FOstats_minmax', axis=1)
+#
+#         # # drop any NaN
+#         # print df_tp_glcmNbin.shape
+#         # test = df_tp_glcmNbin[df_tp_glcmNbin.isnull().any(axis=1)]
+#         # print test.ix[31,:].tolist()
+#
+#         df_tp_glcmNbin = df_tp_glcmNbin.dropna()
+#         print 'the_tp: {}, glcm_Nbin: {}, df.shape: {}'.format(the_tp, the_glcm_Nbin, df_tp_glcmNbin.shape)
+#
+#         # separate the patient clinical data into Triple-Neg vs Non Triple-Neg
+#         df_tp_glcmNbin['TripleNeg'] = df_tp_glcmNbin.apply(
+#             lambda x: 1.0 if x['Sjoerd_ER'] == 0.0 and x['Sjoerd_HER2'] == 0.0 and x['Sjoerd_PR'] == 0.0 else 0.0,
+#             axis=1)
+#         fdir = '{}/her2_Analysis/MRI/IsoVoxel_TP{}_GLCMBIN{}'.format(rootdir, the_tp, the_glcm_Nbin)
+#         makedirs(fdir)
+#         tp_glcmNbin_fname = '{}/MRIdataAll_tp{}_Nbin{}.csv'.format(fdir, the_tp, the_glcm_Nbin)
+#         df_tp_glcmNbin.to_csv(tp_glcmNbin_fname)
 
 
 # df_tp_glcmNbin.sort_values('TripleNeg',inplace=True)

@@ -49,7 +49,8 @@ clinical_colname = ['Anon_Accession_Num','Laterality','PRIMARY_ID','MRN','CR_Acc
 df_clinicaldata = df_mri_pet_imgfeat.ix[:,clinical_colname]
 
 # read all the Image Feature data
-all_jsons = glob.glob('{}/PET*.json'.format(feature_data_dir))
+n_version = 2
+all_jsons = glob.glob('{}/PET*v{}*.json'.format(feature_data_dir, n_version))
 df_img_features = pd.DataFrame()
 for fj in all_jsons:
     df = pd.read_json(fj,dtype={'pt_id':str,'pt_mrn':str,'pt_accession_num':str}) #make sure pt_id and MRN are read in as string
@@ -58,61 +59,98 @@ for fj in all_jsons:
 # join the tables by anonymized accession number
 df_img_clinical_data = pd.merge(df_img_features,df_clinicaldata,how='left',left_on=['pt_accession_num','breast_side'],right_on=['Anon_Accession_Num','Laterality'])
 
-# # # select the data of interest
-# the_imgnormNbin_list = [128]
-# the_glcmNbin_list = [64]
-
-the_imgnormNbin_list = df_img_features['img_norm_Nbin'].unique().tolist()
-the_glcmNbin_list = df_img_features['glcm_Nbin'].unique().tolist()
-
 # drop un-needed columns
-features_drop_list = ['organ_mask','process_name','process_version','texture_glcm_offset','glcm_Nbin','img_norm_Nbin',
+# features_drop_list = ['organ_mask','process_name','process_version','texture_glcm_offset','glcm_Nbin','img_norm_Nbin',
+#                       'pt_accession_num','SUV max','CR_AccessionSeq','MRI_VOLUME_TUM_BLU','MRI_VOLUME_TUMOR',
+#                       'MRI_VOLUME_WHITE','MRI_VOLUME_RED','MRI_VOLUME_GREEN','MRI_VOLUME_PURPLE','MRI_VOLUME_BLUE',
+#                       'MRI_SERROI_SER_MEAN','MRI_PE2ROI_PE2_PEAK','MRI_SERROI_PE2_PEAK','MRI_PE2ROI_SER_MEAN',
+#                       'Marjan_Size (mm)','Anon_Accession_Num','Laterality','PRIMARY_ID','SUV max']
+
+features_drop_list = ['organ_mask','process_name','process_version','texture_glcm_offset',
                       'pt_accession_num','SUV max','CR_AccessionSeq','MRI_VOLUME_TUM_BLU','MRI_VOLUME_TUMOR',
                       'MRI_VOLUME_WHITE','MRI_VOLUME_RED','MRI_VOLUME_GREEN','MRI_VOLUME_PURPLE','MRI_VOLUME_BLUE',
                       'MRI_SERROI_SER_MEAN','MRI_PE2ROI_PE2_PEAK','MRI_SERROI_PE2_PEAK','MRI_PE2ROI_SER_MEAN',
-                      'Marjan_Size (mm)','Anon_Accession_Num','Laterality','PRIMARY_ID','SUV max']
+                      'Marjan_Size (mm)','Anon_Accession_Num','Laterality','PRIMARY_ID']
 
 # data munging: get the average of all the features values (over all offsets) and split minmax into separate variables
-texture_cols = ['texture_autocorrelation', 'texture_cluster_prominence', 'texture_cluster_shade',
-                'texture_cluster_tendency', 'texture_contrast', 'texture_correlation', 'texture_diff_entropy',
-                'texture_dissimilarity','texture_energy', 'texture_entropy', 'texture_homogeneity1', 'texture_homogeneity2',
-                'texture_idmn','texture_idn', 'texture_inv_var', 'texture_maxprob', 'texture_sum_avg', 'texture_sum_entropy',
-                'texture_sum_var']
+tx_feature_list = ['autocorrelation', 'cluster_prominence', 'cluster_shade', 'cluster_tendency', 'contrast',
+                    'correlation','diff_entropy', 'dissimilarity', 'energy', 'entropy', 'homogeneity1', 'homogeneity2',
+                    'idmn','idn', 'inv_var', 'maxprob', 'sum_avg', 'sum_entropy', 'sum_var', 'imc1', 'imc2', 'diff_avg',
+                    'diff_var', 'avg_intensity', 'sum_squares']
+texture_cols = ['texture_{}'.format(ss) for ss in tx_feature_list]
 
-for the_img_norm_Nbin in the_imgnormNbin_list:
-    for the_glcm_Nbin in the_glcmNbin_list:
-        df_tmp = df_img_clinical_data[(df_img_clinical_data['glcm_Nbin'] == the_glcm_Nbin) & (df_img_clinical_data['img_norm_Nbin']==the_img_norm_Nbin)]
+# combine primary_id with breast_side
+the_df = df_img_clinical_data.copy()
 
-        # combine primary_id with breast_side
-        the_df = df_tmp.copy()
+# NOTE: must use 'pt_id' not 'PRIMARY_ID' since 'PRIMARY_ID' numbering is different from the pt_id
+# if using 'PRIMARY_ID', there will be some NaN entry since the numbering isn't the same
+the_df['ptid_side'] = the_df.apply(lambda row: '{}_{}'.format(row['pt_id'],row['breast_side']),axis=1)
+# print the_df.loc[the_df.duplicated(['ptid_side']),['PRIMARY_ID','pt_id','pt_accession_num','breast_side']]
 
-        # NOTE: must use 'pt_id' not 'PRIMARY_ID' since 'PRIMARY_ID' numbering is different from the pt_id
-        # if using 'PRIMARY_ID', there will be some NaN entry since the numbering isn't the same
-        the_df['ptid_side'] = the_df.apply(lambda row: '{}_{}'.format(row['pt_id'],row['breast_side']),axis=1)
-        # print the_df.loc[the_df.duplicated(['ptid_side']),['PRIMARY_ID','pt_id','pt_accession_num','breast_side']]
 
-        the_df = the_df.drop(features_drop_list,axis=1)
-        for tc in texture_cols:
-            the_df[tc] = the_df[tc].apply(lambda x: x if all(x) else np.nan)
-            the_df[tc +'_avg'] = the_df[tc].apply(np.nanmean)
-            the_df = the_df.drop(tc,axis=1)
+the_df = the_df.drop(features_drop_list,axis=1)
+for tc in texture_cols:
+    the_df[tc] = the_df[tc].apply(lambda x: np.nan if any(np.isnan(x)) else x)
+    the_df[tc +'_avg'] = the_df[tc].apply(np.nanmean)
+    the_df = the_df.drop(tc,axis=1)
 
-        the_df['FOstats_min'] = the_df['FOstats_minmax'].apply(lambda x: x[0])
-        the_df['FOstats_max'] = the_df['FOstats_minmax'].apply(lambda x: x[1])
-        the_df = the_df.drop('FOstats_minmax',axis=1)
+the_df['FOstats_min'] = the_df['FOstats_minmax'].apply(lambda x: x[0])
+the_df['FOstats_max'] = the_df['FOstats_minmax'].apply(lambda x: x[1])
+the_df = the_df.drop('FOstats_minmax',axis=1)
 
-        # drop any NaN
-        test = the_df.ix[the_df.isnull().any(axis=1),['Sjoerd_HER2','Sjoerd_ER','Sjoerd_PR']]
 
-        the_df = the_df.dropna()
-        print 'glcm_Nbin: {}, img_Nbin: {}, df.shape: {}'.format(the_glcm_Nbin,the_img_norm_Nbin,the_df.shape)
+the_df['voxel_size_mm3'] = the_df['voxel_size_mm3'].apply(lambda x: x[0])
+# print the_df.ix[0,'voxel_size_mm3']
 
-        # separate the patient clinical data into Triple-Neg vs Non Triple-Neg
-        the_df['TripleNeg'] = the_df.apply(lambda x: 1.0 if x['Sjoerd_ER'] == 0.0 and x['Sjoerd_HER2'] == 0.0 and x['Sjoerd_PR'] == 0.0 else 0.0, axis=1)
-        fdir = '{}/her2_Analysis/PET/IsoVoxel_IMGBIN{}_GLCMBIN{}'.format(rootdir,the_img_norm_Nbin,the_glcm_Nbin)
-        makedirs(fdir)
-        the_df_fname = '{}/PETdataAll_glcmNbin{}_normNbin{}.csv'.format(fdir,the_glcm_Nbin,the_img_norm_Nbin)
-        the_df.to_csv(the_df_fname)
+# separate the patient clinical data into Triple-Neg vs Non Triple-Neg
+the_df['TripleNeg'] = the_df.apply(lambda x: 1.0 if x['Sjoerd_ER'] == 0.0 and x['Sjoerd_HER2'] == 0.0 and x['Sjoerd_PR'] == 0.0 else 0.0, axis=1)
+
+fdir = '{}/her2_Analysis/PET/IsoVoxel_binWidth{}'.format(rootdir,the_df.ix[0,'bin_width'])
+makedirs(fdir)
+the_df_fname = '{}/PETdataAll_binWidth{}.csv'.format(fdir,the_df.ix[0,'bin_width'])
+the_df.to_csv(the_df_fname)
+
+
+# # select the data of interest
+# the_imgnormNbin_list = [128]
+# the_glcmNbin_list = [64]
+
+# the_imgnormNbin_list = df_img_features['img_norm_Nbin'].unique().tolist()
+# the_glcmNbin_list = df_img_features['glcm_Nbin'].unique().tolist()
+# for the_img_norm_Nbin in the_imgnormNbin_list:
+#     for the_glcm_Nbin in the_glcmNbin_list:
+#         df_tmp = df_img_clinical_data[(df_img_clinical_data['glcm_Nbin'] == the_glcm_Nbin) & (df_img_clinical_data['img_norm_Nbin']==the_img_norm_Nbin)]
+#
+#         # combine primary_id with breast_side
+#         the_df = df_tmp.copy()
+#
+#         # NOTE: must use 'pt_id' not 'PRIMARY_ID' since 'PRIMARY_ID' numbering is different from the pt_id
+#         # if using 'PRIMARY_ID', there will be some NaN entry since the numbering isn't the same
+#         the_df['ptid_side'] = the_df.apply(lambda row: '{}_{}'.format(row['pt_id'],row['breast_side']),axis=1)
+#         # print the_df.loc[the_df.duplicated(['ptid_side']),['PRIMARY_ID','pt_id','pt_accession_num','breast_side']]
+#
+#         the_df = the_df.drop(features_drop_list,axis=1)
+#         for tc in texture_cols:
+#             the_df[tc] = the_df[tc].apply(lambda x: x if all(x) else np.nan)
+#             the_df[tc +'_avg'] = the_df[tc].apply(np.nanmean)
+#             the_df = the_df.drop(tc,axis=1)
+#
+#         the_df['FOstats_min'] = the_df['FOstats_minmax'].apply(lambda x: x[0])
+#         the_df['FOstats_max'] = the_df['FOstats_minmax'].apply(lambda x: x[1])
+#         the_df = the_df.drop('FOstats_minmax',axis=1)
+#
+#         # drop any NaN
+#         test = the_df.ix[the_df.isnull().any(axis=1),['Sjoerd_HER2','Sjoerd_ER','Sjoerd_PR']]
+#
+#         the_df = the_df.dropna()
+#         print 'glcm_Nbin: {}, img_Nbin: {}, df.shape: {}'.format(the_glcm_Nbin,the_img_norm_Nbin,the_df.shape)
+#
+#         # separate the patient clinical data into Triple-Neg vs Non Triple-Neg
+#         the_df['TripleNeg'] = the_df.apply(lambda x: 1.0 if x['Sjoerd_ER'] == 0.0 and x['Sjoerd_HER2'] == 0.0 and x['Sjoerd_PR'] == 0.0 else 0.0, axis=1)
+#         fdir = '{}/her2_Analysis/PET/IsoVoxel_IMGBIN{}_GLCMBIN{}'.format(rootdir,the_img_norm_Nbin,the_glcm_Nbin)
+#         makedirs(fdir)
+#         the_df_fname = '{}/PETdataAll_glcmNbin{}_normNbin{}.csv'.format(fdir,the_glcm_Nbin,the_img_norm_Nbin)
+#         the_df.to_csv(the_df_fname)
 
 # the_df.sort_values('TripleNeg',inplace=True)
 # the_TripleNegsorted_ptidside = the_df['ptid_side'].tolist()

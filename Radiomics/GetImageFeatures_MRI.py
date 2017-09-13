@@ -28,6 +28,7 @@ if __name__ == '__main__':
 
     pid_start = int(sys.argv[1])
     pid_end = int(sys.argv[2])
+    is_check_vis = int(sys.argv[3])
 
     # Lassen
     rootdir = '/data/francgrp1'
@@ -45,17 +46,20 @@ if __name__ == '__main__':
 
     # image standardization => rescale the raw image into 0-Nbin range
     # img_norm_Nbin = [64, 128, 256]
-    img_norm_Nbin = [256]
+    # img_norm_Nbin = [256]
 
     # define the texture features list to compute
-    feature_list = ['autocorrelation', 'cluster_prominence', 'cluster_shade', 'cluster_tendency', 'contrast', 'correlation',
-                    'diff_entropy', 'dissimilarity', 'energy', 'entropy', 'homogeneity1', 'homogeneity2', 'idmn',
-                    'idn', 'inv_var', 'maxprob', 'sum_avg', 'sum_entropy', 'sum_var']
+    feature_list = ['autocorrelation', 'cluster_prominence', 'cluster_shade', 'cluster_tendency', 'contrast',
+                    'correlation', 'diff_entropy', 'dissimilarity', 'energy', 'entropy', 'homogeneity1', 'homogeneity2',
+                    'idmn', 'idn', 'inv_var', 'maxprob', 'sum_avg', 'sum_entropy', 'sum_var', 'imc1', 'imc2',
+                    'diff_avg','diff_var', 'avg_intensity', 'sum_squares']
 
     # parameters for the glcm texture analysis
     Rneighbor = 1
-    glcm_Nbin = [64, 128, 256]
+    # glcm_Nbin = [64, 128, 256]
+    glcm_bin_width = [5]
     the_img_spacing = np.array([0.5,0.5,0.5])  #in millimeter
+    proc_version = 2
 
     mem_use = []
     the_select_ids = [dd for dd in ids if dd >= pid_start and dd < pid_end]
@@ -87,92 +91,93 @@ if __name__ == '__main__':
             if breast_side == 'R' and pt_id == 89:
                 print 'pt_id {}, breast_side {}, this case has bad image input..'.format(pt_id,breast_side)
                 continue
-
-            CENTER, HALFLENGTHS,time_sorted_IMNAMES = ImP.GetImInfo(jj)
-
-            # Get the SER mask (.dmi) from the brtool output
-            findserdmi = glob.glob('{}/{}_{}*.SER_MASK.dmi'.format(im_info_dir,pt_id,breast_side))
-            if findserdmi:
-                ser_mask_fname = findserdmi[0]
-                print 'ser_mask_fname: {}'.format(ser_mask_fname)
             else:
-                print 'pt_id {}: SER mask DMI file was NOT found!'.format(pt_id)
-                continue
+                CENTER, HALFLENGTHS,time_sorted_IMNAMES = ImP.GetImInfo(jj)
 
-            ser_mask_dmi = dmi.DMI(ser_mask_fname)
-            ser_mask_itk = ITKImageHelper.generate_oriented_itkImage(ser_mask_dmi)
-            ser_mask_sagittal = ITKImageHelper.itkImage_orient_to_sagittal(ser_mask_itk)
+                # Get the SER mask (.dmi) from the brtool output
+                findserdmi = glob.glob('{}/{}_{}*.SER_MASK.dmi'.format(im_info_dir,pt_id,breast_side))
+                if findserdmi:
+                    ser_mask_fname = findserdmi[0]
+                    print 'ser_mask_fname: {}'.format(ser_mask_fname)
+                else:
+                    print 'pt_id {}: SER mask DMI file was NOT found!'.format(pt_id)
+                    continue
 
-            # DMI MRI volumes (from brtool output)
-            pt_series_dir = glob.glob('{}/{:0>3d}/*/*'.format(imdir, pt_id))[0]
-            pt_dmi_list = ['{}/dce/{}'.format(pt_series_dir, ff) for ff in time_sorted_IMNAMES]
+                ser_mask_dmi = dmi.DMI(ser_mask_fname)
+                ser_mask_itk = ITKImageHelper.generate_oriented_itkImage(ser_mask_dmi)
+                ser_mask_sagittal = ITKImageHelper.itkImage_orient_to_sagittal(ser_mask_itk)
 
-            for ii in range(len(pt_dmi_list)):
-                print 'image file dmi name: {}'.format(pt_dmi_list[ii])
-                dceSeries = dmi.DMI(pt_dmi_list[ii])
-                mri_itk_img = ITKImageHelper.generate_oriented_itkImage(dceSeries)
-                mri_itk_sagittal = ITKImageHelper.itkImage_orient_to_sagittal(mri_itk_img)
-                IG_mri_img = image_geometry.ImageGeometry(mri_itk_sagittal)
-                print 'MRI voxel size (mm^3): {}'.format(IG_mri_img.samplingRCS)
+                # DMI MRI volumes (from brtool output)
+                pt_series_dir = glob.glob('{}/{:0>3d}/*/*'.format(imdir, pt_id))[0]
+                pt_dmi_list = ['{}/dce/{}'.format(pt_series_dir, ff) for ff in time_sorted_IMNAMES]
 
-                # # visual checking of images and mask
-                # ar = IG_mri_img.samplingSRC[2] / IG_mri_img.samplingSRC[1]
-                # mri_array = ITKImageHelper.itkImage_to_ndarray(mri_itk_sagittal)
-                # ser_mask_array = ITKImageHelper.itkImage_to_ndarray(ser_mask_sagittal)
-                # ImP.display_overlay_volume(mri_array, ser_mask_array, 'DCE-MRI image + SER mask', aspect=ar)
+                for ii in range(len(pt_dmi_list)):
+                    print 'image file dmi name: {}'.format(pt_dmi_list[ii])
+                    dceSeries = dmi.DMI(pt_dmi_list[ii])
+                    mri_itk_img = ITKImageHelper.generate_oriented_itkImage(dceSeries)
+                    mri_itk_sagittal = ITKImageHelper.itkImage_orient_to_sagittal(mri_itk_img)
+                    IG_mri_img = image_geometry.ImageGeometry(mri_itk_sagittal)
+                    print 'MRI voxel size (mm^3): {}'.format(IG_mri_img.samplingRCS)
 
-                # figure out the patient MRN
-                tag_mrn = dicom.tag.Tag(0x0010, 0x0020)
-                pt_mrn = dceSeries._DS[tag_mrn].value
+                    # # visual checking of images and mask
+                    # if is_check_vis == 1:
+                    #     ar = IG_mri_img.samplingSRC[2] / IG_mri_img.samplingSRC[1]
+                    #     mri_array = ITKImageHelper.itkImage_to_ndarray(mri_itk_sagittal)
+                    #     ser_mask_array = ITKImageHelper.itkImage_to_ndarray(ser_mask_sagittal)
+                    #     ImP.display_overlay_volume(mri_array, ser_mask_array, 'DCE-MRI image + SER mask', aspect=ar)
 
-                tag_acc_num = dicom.tag.Tag(0x0008,0x0050)
-                pt_acc_num = dceSeries._DS[tag_acc_num].value
-                print 'pt_mrn: {}, pt_acc_num: {}'.format(pt_mrn,pt_acc_num)
+                    # figure out the patient MRN
+                    tag_mrn = dicom.tag.Tag(0x0010, 0x0020)
+                    pt_mrn = dceSeries._DS[tag_mrn].value
 
-                if ii == 0:
-                    # get VOI info
-                    voi_ixyz,voi_size = ImP.GetVOIinfo(CENTER,HALFLENGTHS,IG_mri_img)
+                    tag_acc_num = dicom.tag.Tag(0x0008,0x0050)
+                    pt_acc_num = dceSeries._DS[tag_acc_num].value
+                    print 'pt_mrn: {}, pt_acc_num: {}'.format(pt_mrn,pt_acc_num)
 
-                    # Get mask VOI (only need to do it once)
-                    ser_mask_sagittal_roi = ImP.GetITKVOI(ser_mask_sagittal, voi_size, voi_ixyz)
+                    if ii == 0:
+                        # get VOI info
+                        voi_ixyz,voi_size = ImP.GetVOIinfo(CENTER,HALFLENGTHS,IG_mri_img)
 
-                    # resample the mask VOI to the desired voxel spacing
-                    resampled_itk_mask = itkif.ITKImageResample(ser_mask_sagittal_roi,the_img_spacing,is_mask=True)
-                    
+                        # Get mask VOI (only need to do it once)
+                        ser_mask_sagittal_roi = ImP.GetITKVOI(ser_mask_sagittal, voi_size, voi_ixyz)
 
-                # get the image VOI
-                mri_itk_sagittal_roi = ImP.GetITKVOI(mri_itk_sagittal, voi_size, voi_ixyz)
+                        # resample the mask VOI to the desired voxel spacing
+                        resampled_itk_mask = itkif.ITKImageResample(ser_mask_sagittal_roi,the_img_spacing,is_mask=True)
 
-                ## visual checking of images and mask
-                # IG_roi_itk_img = image_geometry.ImageGeometry(mri_itk_sagittal_roi)
-                # ar = IG_roi_itk_img.samplingSRC[2] / IG_roi_itk_img.samplingSRC[1]
-                # img_array = ITKImageHelper.itkImage_to_ndarray(mri_itk_sagittal_roi)
-                # mask_array = ITKImageHelper.itkImage_to_ndarray(ser_mask_sagittal_roi)
-                # ImP.display_overlay_volume(img_array, mask_array,'DCE-MRI image VOI + SER mask VOI', aspect=ar)
 
-                # print out input image geometry info
-                ITKImageHelper.itkImage_print_image_geometry(mri_itk_sagittal_roi)
+                    # get the image VOI
+                    mri_itk_sagittal_roi = ImP.GetITKVOI(mri_itk_sagittal, voi_size, voi_ixyz)
 
-                # resample the image VOI to the desired voxel spacing
-                resampled_itk_img = itkif.ITKImageResample(mri_itk_sagittal_roi,the_img_spacing,is_mask=False)
+                    ## visual checking of images and mask
+                    if is_check_vis == 1:
+                        IG_roi_itk_img = image_geometry.ImageGeometry(mri_itk_sagittal_roi)
+                        ar = IG_roi_itk_img.samplingSRC[2] / IG_roi_itk_img.samplingSRC[1]
+                        img_array = ITKImageHelper.itkImage_to_ndarray(mri_itk_sagittal_roi)
+                        mask_array = ITKImageHelper.itkImage_to_ndarray(ser_mask_sagittal_roi)
+                        ImP.display_overlay_volume(img_array, mask_array,'DCE-MRI image VOI + SER mask VOI', aspect=ar)
 
-                # visual checking of images and mask
-                #IG_resampled_itk_img = image_geometry.ImageGeometry(resampled_itk_img)
-                #ar = IG_resampled_itk_img.samplingSRC[2]/IG_resampled_itk_img.samplingSRC[1]
-                #img_array = ITKImageHelper.itkImage_to_ndarray(resampled_itk_img)
-                #mask_array = ITKImageHelper.itkImage_to_ndarray(resampled_itk_mask)
-                #ImP.display_overlay_volume(img_array, mask_array, 'DCE-MRI image Resampled VOI + SER mask Resampled VOI', aspect=ar)
-                #print 'mask resampled voxel size (mm^3): {}'.format(IG_resampled_itk_img.samplingRCS)
-                # define texture feature list
-                theimf = ImF.ImageFeature(resampled_itk_img,feature_list,resampled_itk_mask,'dict')
+                    # print out input image geometry info
+                    ITKImageHelper.itkImage_print_image_geometry(mri_itk_sagittal_roi)
 
-                for aa in img_norm_Nbin:
-                    print 'img_norm_Nbin: {}'.format(aa)
-                    for bb in glcm_Nbin:
-                        print 'glcm Nbin: {}'.format(bb)
-                        theimf._compute_texture_features(Rneighbor, GSnorm_Nbin=aa, glcm_Nbin=bb)
-                        theimf._compute_texture_features(Rneighbor,bb)
-                        theimf._compute_first_order_stats()
+                    # resample the image VOI to the desired voxel spacing
+                    resampled_itk_img = itkif.ITKImageResample(mri_itk_sagittal_roi,the_img_spacing,is_mask=False)
+                    IG_resampled_itk_img = image_geometry.ImageGeometry(resampled_itk_img)
+
+                    # visual checking of images and mask
+                    if is_check_vis == 1:
+                        ar = IG_resampled_itk_img.samplingSRC[2]/IG_resampled_itk_img.samplingSRC[1]
+                        img_array = ITKImageHelper.itkImage_to_ndarray(resampled_itk_img)
+                        mask_array = ITKImageHelper.itkImage_to_ndarray(resampled_itk_mask)
+                        ImP.display_overlay_volume(img_array, mask_array, 'DCE-MRI image Resampled VOI + SER mask Resampled VOI', aspect=ar)
+
+                    print 'mask resampled voxel size (mm^3): {}'.format(IG_resampled_itk_img.samplingRCS)
+                    # define texture feature list
+                    theimf = ImF.ImageFeature(resampled_itk_img,feature_list,resampled_itk_mask,'dict')
+
+                    for bb in glcm_bin_width:
+                        print 'glcm bin width: {}'.format(bb)
+                        theimf._compute_texture_features(Rneighbor, binWidth=bb)
+                        theimf._compute_first_order_stats(binWidth=bb)
                         theimf._compute_shape_size_features()
 
                         tmp_dict = theimf.feature_output
@@ -180,25 +185,25 @@ if __name__ == '__main__':
                         tmp_dict['pt_mrn'] = pt_mrn
                         tmp_dict['pt_accession_num'] = pt_acc_num
                         tmp_dict['dce_series_dmi_fname'] = pt_dmi_list[ii]
-                        tmp_dict['glcm_Nbin'] = bb
+                        tmp_dict['glcm_bin_width'] = bb
                         tmp_dict['organ_mask'] = 'breast tumor'
                         tmp_dict['process_name'] = 'GetImageFeature_VOI'
-                        tmp_dict['process_version'] = '1.0'
-                        tmp_dict['img_norm_Nbin'] = aa
+                        tmp_dict['process_version'] = proc_version
                         tmp_dict['voxel_size_mm3'] = the_img_spacing
 
                         #TODO: instead of writing to a dataframe, consider write to the mongodb db
                         pt_features_data = pt_features_data.append(tmp_dict, ignore_index=True)
+                        # print pt_features_data
 
             # monitor the memory usage
             mem_use.append(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
 
             pt_features_data['pt_id'] = pt_features_data['pt_id'].astype('int')
             save_dir = '{}/clare_work/Data/her2_ImageFeatures/IsoVoxelSize'.format(rootdir)
-            dataoutfname = '{}/MRI_features_data_{}_{}.json'.format(save_dir,pt_id,breast_side)
+            dataoutfname = '{}/MRI_features_data_v{}_{}_{}.json'.format(save_dir,proc_version, pt_id,breast_side)
             pt_features_data.to_json(dataoutfname)
 
         # save the memory log
-        outfile = open('{}/memory_usage_{}_{}.txt'.format(save_dir,pid_start,pid_end), 'w')
+        outfile = open('{}/memory_usage_v{}_{}_{}.txt'.format(save_dir,proc_version, pid_start,pid_end), 'w')
         outfile.write('\n'.join([str(s) for s in mem_use]))
         outfile.close()

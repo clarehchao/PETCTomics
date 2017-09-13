@@ -16,7 +16,7 @@ import numpy.ma as ma
 
 def is_mask_constant(maskval,outstr):
     if maskval is ma.masked:
-        print '::OH NO O_O:: {} is a masked constant!'
+        print '::OH NO O_O:: {} is a masked constant!'.format(outstr)
         return True
     else:
         return False
@@ -40,7 +40,7 @@ class GLCMTextureFeature:
         self._p_xminusy = None
         self._Hx = None
         self._Hy = None
-        self._H = None
+        self._Hxy = None
         self._Hxy1 = None
         self._Hxy2 = None
         self._ii = None
@@ -64,6 +64,12 @@ class GLCMTextureFeature:
         self._sum_avg = None
         self._sum_entropy = None
         self._sum_var = None
+        self._diff_var = None
+        self._diff_avg = None
+        self._imc1 = None
+        self._imc2 = None
+        self._sum_squares = None
+        self._avg_intensity = None
         self._feature_list = ['contrast']  # default feature list
         self._feature_dict = None
         self._compute_feature_map = None
@@ -171,6 +177,30 @@ class GLCMTextureFeature:
         return self._sum_var
 
     @property
+    def imc1(self):
+        return self._imc1
+
+    @property
+    def imc2(self):
+        return self._imc2
+
+    @property
+    def diff_var(self):
+        return self._diff_var
+
+    @property
+    def diff_avg(self):
+        return self._diff_avg
+
+    @property
+    def avg_intensity(self):
+        return self._avg_intensity
+
+    @property
+    def sum_squares(self):
+        return self._sum_squares
+
+    @property
     def feature_dict(self):
         return self._feature_dict
 
@@ -186,32 +216,36 @@ class GLCMTextureFeature:
             #TODO: make all math opearation working with 3D glcm matrix instead of 2D
             #Ensure the glcm matrix is normalized to probability matrix
             self._p = ma.true_divide(self._p,np.sum(self._p))
+            # print 'p: {}'.format(self._p)
             self._px = np.sum(self._p,axis=1)
             self._py = np.sum(self._p,axis=0)
 
-            self._ii, self._jj = np.ogrid[0:self._p.shape[0], 0:self._p.shape[1]]
+            # self._ii, self._jj = np.ogrid[0:self._p.shape[0], 0:self._p.shape[1]]
+            self._ii, self._jj = np.ogrid[1:(self._p.shape[0]+1), 1:(1+self._p.shape[1])]
             self._ux = np.sum(self._ii * self._p)
             self._uy = np.sum(self._jj * self._p)
             # print 'after ux, uy'
 
-            self._sigx = np.sum(((self._ii - self._ux) ** 2) * self._p)
-            self._sigy = np.sum(((self._jj - self._uy) ** 2) * self._p)
+            self._sigx = np.sum(((self._ii - self._ux) ** 2) * self._p) ** 0.5
+            self._sigy = np.sum(((self._jj - self._uy) ** 2) * self._p) ** 0.5
 
             # print 'after sigx sigy'
 
-            self._k1 = np.arange(0, 2 * self._p.shape[0] - 1, 1)
+            # self._k1 = np.arange(0, 2 * self._p.shape[0] - 1, 1)
+            self._k1 = np.arange(2, 2 * self._p.shape[0] + 1)
             self._p_xplusy = np.zeros(self._k1.shape)
-            for kk in self._k1:
-                tmp = (self._ii + self._jj == kk)
-                self._p_xplusy[kk] = ma.sum(self._p[tmp])
+            for ik in range(len(self._k1)):
+                tmp = (self._ii + self._jj == self._k1[ik])
+                self._p_xplusy[ik] = ma.sum(self._p[tmp])
                 del tmp
             # print 'after p_xplusy'
 
-            self._k2 = np.arange(0, self._p.shape[0], 1)
+            # self._k2 = np.arange(0, self._p.shape[0], 1)
+            self._k2 = np.arange(0, self._p.shape[0])
             self._p_xminusy = np.zeros(self._k2.shape)
-            for kk in self._k2:
-                tmp = (np.abs(self._ii - self._jj) == kk)
-                self._p_xminusy[kk] = np.sum(self._p[tmp])
+            for ik in range(len(self._k2)):
+                tmp = (np.abs(self._ii - self._jj) == self._k2[ik])
+                self._p_xminusy[ik] = np.sum(self._p[tmp])
                 del tmp
             # print 'after p xminusy'
 
@@ -229,21 +263,22 @@ class GLCMTextureFeature:
 
             tmp = -np.sum(self._p * ma.log2(self._p))
             if not is_mask_constant(tmp,'H'):
-                self._H = tmp
+                self._Hxy = tmp
             del tmp
 
             pxx,pyy = np.meshgrid(self._px,self._py,indexing='ij')
-            tmp = -np.sum(self._p * ma.log(pxx * pyy))
-            if is_mask_constant(tmp,'Hxy1'):
+            tmp = -np.sum(self._p * ma.log2(pxx * pyy))
+            if not is_mask_constant(tmp,'Hxy1'):
                 self._Hxy1 = tmp
             del tmp
-            # print 'after Hxy1'
+            # print 'after Hxy1: {}'.format(self._Hxy1)
 
-            tmp = -np.sum(pxx * pyy * ma.log(pxx * pyy))
+            tmp = -np.sum(pxx * pyy * ma.log2(pxx * pyy))
             if not is_mask_constant(tmp,'Hxy2'):
                 self._Hxy2 = tmp
             del tmp
             # print 'after Hxy2'
+
 
 
     def compute_features(self):
@@ -262,7 +297,10 @@ class GLCMTextureFeature:
                                          'idn': self._compute_IDN(), 'inv_var': self._compute_inverse_var(),
                                          'maxprob': self._compute_max_prob(),
                                          'sum_avg': self._compute_sum_avg(), 'sum_entropy': self._compute_sum_entropy(),
-                                         'sum_var': self._compute_sum_var()}
+                                         'sum_var': self._compute_sum_var(), 'imc1': self._compute_IMC1(),
+                                         'imc2': self._compute_IMC2(), 'diff_avg': self._compute_diff_avg(),
+                                         'diff_var': self._compute_diff_var(), 'avg_intensity': self._compute_avg_intensity(),
+                                         'sum_squares': self._compute_sum_squares()}
 
             self._get_feature_map = {'autocorrelation': [self.autocorrelation],
                                      'cluster_prominence': [self.clusterprom],
@@ -276,7 +314,10 @@ class GLCMTextureFeature:
                                      'idmn': [self.IDNM], 'idn': [self.IDN],
                                      'inv_var': [self.inverse_var], 'maxprob': [self.maxprob],
                                      'sum_avg': [self.sum_avg],
-                                     'sum_entropy': [self.sum_entropy], 'sum_var': [self.sum_var]}
+                                     'sum_entropy': [self.sum_entropy], 'sum_var': [self.sum_var],
+                                     'imc1': [self.imc1],'imc2': [self.imc2],
+                                     'diff_avg': [self.diff_avg],'diff_var': [self.diff_var],
+                                     'avg_intensity': [self.avg_intensity],'sum_squares': [self.sum_squares]}
 
         # compute all the features for a given feature list and popuulate the feature dictionary
         self._feature_dict = {}
@@ -293,7 +334,7 @@ class GLCMTextureFeature:
                 #     print 'glcm matrix is NOT all 0\'s, compute feature map: {},{}'.format(ff,self._feature_dict[ff])
 
     def _compute_autocorrelation(self):
-        self._autocor = np.sum(self._ii * self._jj * self._p)
+        self._autocor = np.sum(self._p * (self._ii * self._jj))
 
     def _compute_cluster_prominence(self):
         self._cluster_prominence = np.sum(((self._ii + self._jj - self._ux - self._uy)**4) * self._p)
@@ -308,12 +349,13 @@ class GLCMTextureFeature:
         self._contrast = np.sum(((self._ii - self._jj)**2) * self._p)
 
     def _compute_correlation(self):
-        tmp = ma.true_divide((np.sum(self._ii * self._jj * self._p) - self._ux*self._uy),self._sigx*self._sigy)
+        tmp = ma.true_divide((np.sum(self._p * (self._ii * self._jj)) - (self._ux*self._uy)),self._sigx*self._sigy)
         if not is_mask_constant(tmp,'correlation'):
             self._correlation = tmp
 
     def _compute_difference_entropy(self):
-        tmp = np.sum(self._p_xminusy * ma.log2(self._p_xminusy))
+        # tmp = np.sum(self._p_xminusy * ma.log2(self._p_xminusy))
+        tmp = (-1)*np.sum(self._p_xminusy * ma.log2(self._p_xminusy))
         if not is_mask_constant(tmp,'diff_entropy'):
             self._diff_entropy = tmp
 
@@ -324,7 +366,7 @@ class GLCMTextureFeature:
         self._energy = np.sum(self._p**2)
 
     def _compute_entropy(self):
-        tmp = np.sum(self._p * ma.log2(self._p))
+        tmp = (-1)*np.sum(self._p * ma.log2(self._p))
         if not is_mask_constant(tmp,'entropy'):
             self._entropy = tmp
 
@@ -341,6 +383,15 @@ class GLCMTextureFeature:
 
     def _compute_IMC1(self):
         """TODO: determine what HXY is in the equation in Aert et al."""
+        div = np.max([self._Hx, self._Hy])
+        tmp = ma.true_divide((self._Hxy - self._Hxy1), div)
+        if not is_mask_constant(tmp, 'IMC1'):
+            self._imc1 = tmp
+
+    def _compute_IMC2(self):
+        tmp = (1 - ma.exp(-2 * (self._Hxy2 - self._Hxy))) ** 0.5
+        if not is_mask_constant(tmp, 'imc2'):
+            self._imc2 = tmp
 
     def _compute_IDMN(self):
         denom = 1 + ma.true_divide((self._ii - self._jj)**2,self._p.shape[0]**2)
@@ -363,13 +414,29 @@ class GLCMTextureFeature:
         self._max_prob = np.amax(self._p)
 
     def _compute_sum_avg(self):
+        # print 'compute sum avg: {}, {}'.format(self._k1, self._p_xplusy)
         self._sum_avg = np.sum(self._k1 * self._p_xplusy)
 
     def _compute_sum_entropy(self):
         self._sum_entropy = -np.sum(self._p_xplusy * ma.log2(self._p_xplusy))
 
     def _compute_sum_var(self):
+        # self._sum_var = np.sum((self._k1 - self._sum_avg) ** 2 * self._p_xplusy)
         self._sum_var = np.sum((self._k1 - self._sum_entropy)**2 * self._p_xplusy)
+
+    def _compute_diff_avg(self):
+        self._diff_avg = np.sum(self._k2 * self._p_xminusy)
+
+    def _compute_diff_var(self):
+        diffavg = np.sum(self._k2 * self._p_xminusy)
+        self._diff_var = np.sum(self._p_xminusy * (self._k2 - diffavg) ** 2)
+
+    def _compute_avg_intensity(self):
+        self._avg_intensity = self._ux
+
+    def _compute_sum_squares(self):
+        self._sum_squares = np.sum(self._p * ((self._ii - self._ux) ** 2))
+
 
 
 

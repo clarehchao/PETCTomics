@@ -580,4 +580,9 @@ def ITK_Image_OverlayPlot(itk_img,itk_mask,fig_title=''):
     check = np.nonzero(mask_array)
     s1_idx = np.min(check[0])
     s2_idx = np.max(check[0])
-    display_overlay_volume(img_array[s1_idx:s2_idx],mask_array[s1_idx:s2_idx],fig_title=fig_title,aspect=ar)
+
+    # # this works with the cellsite mouse data read in from dicom_series
+    # s1_idx = np.min(check[2])
+    # s2_idx = np.max(check[2])
+
+    display_overlay_volume(img_array[s1_idx:s2_idx+1],mask_array[s1_idx:s2_idx+1],fig_title=fig_title,aspect=ar)

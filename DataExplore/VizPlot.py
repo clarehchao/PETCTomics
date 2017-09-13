@@ -168,13 +168,15 @@ def ClustermapPlot(the_df, varname, fig_fname, img_feature_names,featname_def_fu
         var_lut = dict(zip(unique_var_labels, var_pal))
 
         # save var_lables and var_lut for legend display
-        var_labels_dict[vv] = unique_var_labels
-        var_lut_dict[vv] = var_lut
-
         if var_title:
+            var_labels_dict[var_title[ii]] = unique_var_labels
+            var_lut_dict[var_title[ii]] = var_lut
             clinical_data_colors[var_title[ii]] = pd.Series(var_labels, index=df_pivot_col_unique).map(var_lut)
         else:
-            clinical_data_colors[varname[ii]] = pd.Series(var_labels, index=df_pivot_col_unique).map(var_lut)
+            var_labels_dict[vv] = unique_var_labels
+            var_lut_dict[vv] = var_lut
+            clinical_data_colors[vv] = pd.Series(var_labels, index=df_pivot_col_unique).map(var_lut)
+
 
     csclass_labels = [df_pivot_col_unique[i][ii + 1] for i in range(len(df_pivot_col_unique))]
     unique_csclass_labels = list(set(csclass_labels))
