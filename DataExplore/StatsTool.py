@@ -11,29 +11,33 @@ Created on 5/23/17
 import pandas as pd
 import scipy.stats as stats
 import numpy as np
+import statsmodels.stats.multitest as smm
+import os
 
-def proportion_table(the_df,var1,var2):
+
+def proportion_table(the_df,var1,var2, table_margin=False):
 
     df_tmp = the_df.ix[:,[var1,var2]]
     df_tmp = df_tmp.dropna()
 
-    the_observed_tab0 = pd.crosstab(df_tmp[var1], df_tmp[var2], margins=True)
+    the_observed_tab0 = pd.crosstab(df_tmp[var1], df_tmp[var2], margins=table_margin)
     # the_observed_tab0.columns = df_tmp[var2].unique().tolist() + ['row_totals']
     # the_observed_tab0.index = df_tmp[var1].unique().tolist() + ['col_totals']
     print the_observed_tab0
     print '\n'
 
-    the_observed_tab1 = pd.crosstab(df_tmp[var1], df_tmp[var2], margins=True,normalize='index')
+    the_observed_tab1 = pd.crosstab(df_tmp[var1], df_tmp[var2], margins=table_margin,normalize='index')
     # the_observed_tab1.columns = df_tmp[var2].unique().tolist() + ['row_totals']
     # the_observed_tab1.index = df_tmp[var1].unique().tolist() + ['col_totals']
     print the_observed_tab1
     print '\n'
 
-    the_observed_tab2 = pd.crosstab(df_tmp[var1], df_tmp[var2], margins=True, normalize='columns')
+    the_observed_tab2 = pd.crosstab(df_tmp[var1], df_tmp[var2], margins=table_margin, normalize='columns')
     # the_observed_tab2.columns = df_tmp[var2].unique().tolist() + ['row_totals']
     # the_observed_tab2.index = df_tmp[var1].unique().tolist() + ['col_totals']
     print the_observed_tab2
     print '\n'
+    return (the_observed_tab0, the_observed_tab1, the_observed_tab2)
 
 def chi2test(the_df,var1,var2):
     # print var1, var2
@@ -85,3 +89,42 @@ def chi2test(the_df,var1,var2):
     # print chi2,pval,dof,expected
     return chi2, pval, dof, expected,N_sample, crammersV
     # return chi2, pval, dof, expected, N_sample
+
+def apply_mult_corr1(the_df, save_dir, file_tag):
+    alpha = 0.05
+    method = ['b', 'sidak', 'holm', 'hommel', 'fdr_bh', 'fdr_by', 'fdr_tsbh', 'fdr_tsbky']
+
+    the_ov = the_df['outcome'].unique()
+    for vv in the_ov:
+        pval_raw = the_df.ix[the_df['outcome'] == vv, 'pval'].as_matrix().flatten()
+        df_corr_pval = the_df.ix[the_df['outcome'] == vv, ['feature', 'pval']]
+        for mm in method:
+            rej, pval_corr = smm.multipletests(pval_raw, alpha=alpha, method=mm)[:2]
+            df_corr_pval[mm] = pval_corr
+            df_corr_pval['{}_rej'.format(mm)] = rej
+
+        # sort the df based on pval
+        df_corr_pval.sort_values('pval', inplace=True)
+        # save the corrected pvals
+        new_outcome_name = '_'.join(vv.split(' '))
+        corr_pval_fname = '{}/{}_multitestCorr_{}.csv'.format(save_dir, file_tag, new_outcome_name)
+        df_corr_pval.to_csv(corr_pval_fname, index=False)
+
+def apply_mult_corr2(fname, corr_method='fdr_bh', alpha=0.05):
+
+    the_df = pd.read_csv(fname)
+    the_ov = the_df['outcome'].unique()
+    corr_pval_colname = 'pval_corr_{}'.format(corr_method)
+    pval_rej_colname = '{}_rej'.format(corr_method)
+    for vv in the_ov:
+        pval_raw = the_df.ix[the_df['outcome'] == vv, 'pval'].as_matrix().flatten()
+        rej, pval_corr = smm.multipletests(pval_raw, alpha=alpha, method=corr_method)[:2]
+
+        the_df.loc[the_df['outcome'] == vv, corr_pval_colname] = pval_corr
+        the_df.loc[the_df['outcome'] == vv, pval_rej_colname] = rej
+
+    # save the corrected pvals
+    hh, tt = os.path.splitext(fname)
+    corr_pval_fname = '{}_pvalcorr{}'.format(hh, tt)
+    the_df.to_csv(corr_pval_fname, index=False)
+

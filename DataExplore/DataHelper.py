@@ -440,3 +440,52 @@ def BCHistology_func(row):
         return 'Mixed IDC and ILC'
     elif tumor_hist.lower() in ['dcis', 'lcis']:
         return 'DCIS or LCIS'
+
+def Diseasefree_byYear_func(row, n_year):
+    """
+    :param x: a row in a pandas dataframe
+    :return: return nan if N/A, 1 if disease free/no recur after n_year years, 0 if some sort of recurrence or never disease free
+    """
+    # duration of disease free or recurrence free
+    DS_yr = -1
+    if isinstance(row['Date_Dx'], pd.tslib.NaTType) is False and isinstance(row['Date_Recur'],pd.tslib.NaTType) is False:
+        DS_yr = (row['Date_Recur'] - row['Date_Dx']).days / 365.
+
+    # duration of survival
+    SF_yr = -1
+    if isinstance(row['Date_Dx'], pd.tslib.NaTType) is False and isinstance(row['Date_lastcontactOrDeath'],pd.tslib.NaTType) is False:
+        SF_yr = (row['Date_lastcontactOrDeath'] - row['Date_Dx']).days / 365.
+
+    recur_status = row['Recurrence']
+    if recur_status is np.nan:
+        return np.nan
+    elif recur_status == 2: # never disease free, so even if the person is alive, still with disease
+        return 0
+    elif recur_status == 1:
+        if DS_yr != -1:
+            return 1 if DS_yr > n_year else 0
+        else:
+            return np.nan
+    elif recur_status == 0:
+        if SF_yr != -1:
+            return 1 if SF_yr > n_year else 0
+
+def OverallSurvival_byYear_func(row, n_year):
+    dT_yr = -1
+    if isinstance(row['Date_Dx'], pd.tslib.NaTType) is False and isinstance(row['Date_lastcontactOrDeath'],pd.tslib.NaTType) is False:
+        dT_yr = (row['Date_lastcontactOrDeath'] - row['Date_Dx']).days / 365.
+
+    vital_status = row['Vital status']
+    is_alive = np.nan
+    if vital_status is not np.nan:
+        is_alive = True if vital_status.lower() == 'alive' else False
+    else:
+        alive_or_dead = row['Alive/dead']
+        is_alive = True if alive_or_dead == 1 else False
+
+    if dT_yr == -1 or is_alive is np.nan:
+        return np.nan
+    elif dT_yr > n_year and is_alive == True:
+        return 1
+    else:
+        return 0

@@ -100,7 +100,7 @@ print df_her2_outcome['Age_Dx'].median(), df_her2_outcome['Age_Dx'].min(), df_he
 # df_her2_outcome['Recurrence_4'] = df_her2_outcome['Recurrence_3'].map(lambda x: np.nan if x == 2 else x)
 # df_her2_outcome['Recurrence_CR_1'] = df_her2_outcome['Recurrence Type Summary'].map(dh.recur_func1)
 # df_her2_outcome['Recurrence_CR_2'] = df_her2_outcome['Recurrence Type Summary'].map(dh.recur_func2)
-df_her2_outcome['Diseasefree_5yr'] = df_her2_outcome.apply(dh.diseasefree5yr_func,axis=1)
+# df_her2_outcome['Diseasefree_5yr'] = df_her2_outcome.apply(dh.diseasefree5yr_func,axis=1)
 df_her2_outcome['Recurrence_Type'] = df_her2_outcome['Recurrence Type Summary'].map(dh.recur_type_func)
 df_her2_outcome['BoneMetsOrNot'] = df_her2_outcome['Recurrence Type Summary'].map(dh.BoneRecurOrNot_func)
 
@@ -110,8 +110,25 @@ df_her2_outcome['N_stage'] = df_her2_outcome['N-stage at surgery'].map(dh.Nstage
 df_her2_outcome['Overall_stage'] = df_her2_outcome['Overall stage'].map(dh.Overallstage_func)
 df_her2_outcome['Overall_stage_2'] = df_her2_outcome['Overall stage'].map(dh.Overallstage_func2)
 
+# recurrence free and survival free duration info
+df_her2_outcome['Date_Recur'] = pd.to_datetime(df_her2_outcome['Date Recurrence'])
+df_her2_outcome['Date_Dx'] = pd.to_datetime(df_her2_outcome['Date of Primary Dx'])
+df_her2_outcome['Date_lastcontactOrDeath'] = pd.to_datetime(df_her2_outcome['Last contact/death'])
+
+n_yr_list = [1., 2., 3., 4., 5.]
+more_outcome = []
+for yy in n_yr_list:
+    DF_colname = 'DF_{:.0f}yr'.format(yy)
+    OS_colname = 'OS_{:.0f}yr'.format(yy)
+    more_outcome.extend([DF_colname, OS_colname]) # don't use append when adding with a list
+    df_her2_outcome[DF_colname] = df_her2_outcome.apply(dh.Diseasefree_byYear_func, n_year = yy, axis=1)
+    df_her2_outcome[OS_colname] = df_her2_outcome.apply(dh.OverallSurvival_byYear_func, n_year=yy, axis=1)
+
+
 # define the clinical outcome variables of interest
-the_clinical_vars = ['MRN','Diseasefree_5yr','BoneMetsOrNot','Recurrence','Recurrence_Type','N_stage','T_stage', 'Tumor Histology','Overall_stage','Overall_stage_2']
+# the_clinical_vars = ['MRN','Diseasefree_5yr','BoneMetsOrNot','Recurrence','Recurrence_Type','N_stage','T_stage', 'Tumor Histology','Overall_stage','Overall_stage_2']
+the_clinical_vars = ['MRN','BoneMetsOrNot','Recurrence','Recurrence_Type','N_stage','T_stage', 'Tumor Histology','Overall_stage','Overall_stage_2'] + more_outcome
+
 df_outcome = df_her2_outcome.loc[:, the_clinical_vars]
 
 jdf = pd.merge(df_petmr, df_outcome, on='MRN')
@@ -122,8 +139,8 @@ jdf = pd.merge(df_petmr, df_outcome, on='MRN')
 jdf = jdf.rename(columns={'Sjoerd_Grade': 'Tumor_Grade', 'Marjan_Histology': 'Tumor_Histology'})
 jdf['Tumor_Histology_updated'] = jdf.apply(dh.BCHistology_func, axis=1)
 
-fname = '{}/data_all.csv'.format(im_dir)
-jdf.to_csv(fname)
+# fname = '{}/data_all.csv'.format(im_dir)
+# jdf.to_csv(fname)
 
 # look at the data for clustering algm settings
 the_N_cluster = 3
@@ -131,7 +148,7 @@ the_N_cluster = 3
 outcome_name_list = ['Recurrence_Type','Recurrence','Tumor_Grade','Tumor_Histology_updated', 'T_stage', 'N_stage', 'Overall_stage','BC_subtype','Overall_stage_2']
 
 # the_N_cluster = 2
-# outcome_name_list = ['Diseasefree_5yr','BoneMetsOrNot','TripleNeg']
+# outcome_name_list = ['BoneMetsOrNot','TripleNeg'] + more_outcome
 
 cluster_name = 'cs_class'
 
@@ -163,9 +180,9 @@ for ii in range(df_tmp.shape[0]):
 # the_ov_interest = 'T_stage'
 # print chi2_all_df[chi2_all_df['v2'] == the_ov_interest]
 
-# save the chi2 result for all data
-chi2_fname = '{}/chi2_Ncluster{}.csv'.format(im_dir, the_N_cluster)
-chi2_all_df.to_csv(chi2_fname)
+# # save the chi2 result for all data
+# chi2_fname = '{}/chi2_Ncluster{}.csv'.format(im_dir, the_N_cluster)
+# chi2_all_df.to_csv(chi2_fname)
 
 # get the optimal cluster setting for each outcome variable and plot the clustermap
 fdf = chi2_all_df[chi2_all_df['N_mincluster'] > 5]
@@ -204,18 +221,22 @@ for ov in the_outcome_vars_list:
     count = count + 1
 
     # print proportion table for chi2 test
-    st.proportion_table(the_df, 'cs_class', ov)
+    _,_,_ = st.proportion_table(the_df, 'cs_class', ov, table_margin=True)
 
     if ov == 'Recurrence':
         fig_fname = '{}/clustermap_Recur_kmax{}.pdf'.format(cc_dir, the_N_cluster)
-        recur_pal1 = [(1., 1., 1.), sns.color_palette('Set2', 10)[3], sns.color_palette('Set2', 10)[7]]
-        vp.ClustermapPlot(the_df, [ov], fig_fname, imf_petmri_names, vp.featurename_redef_petmr,vp.featurelabel_redef_petmr, idvar_color_pal_mode=2,var_color_pal=[recur_pal1])
+        # recur_pal1 = [(1., 1., 1.), sns.color_palette('Set2', 10)[3], sns.color_palette('Set2', 10)[7]]
+        recur_pal1 = sns.color_palette('YlOrRd', len(the_df[ov].unique()))
+        vp.ClustermapPlot(the_df, [ov], fig_fname, imf_petmri_names, vp.featurename_redef_petmr,vp.featurelabel_redef_petmr, idvar_color_pal_mode=2,var_color_pal=[recur_pal1], var_title=['Recurrence Status'])
     elif ov == 'BoneMetsOrNot':
         fig_fname = '{}/clustermap_BoneMetsOrNot_kmax{}.pdf'.format(cc_dir, the_N_cluster)
-        recur_pal1 = [(1., 1., 1.), sns.color_palette('Set2', 10)[3]]
-        vp.ClustermapPlot(the_df, [ov], fig_fname, imf_petmri_names, vp.featurename_redef_petmr,
-                          vp.featurelabel_redef_petmr, idvar_color_pal_mode=2, var_title=['Recurrence'],
-                          var_color_pal=[recur_pal1])
+        the_pal = [(1., 1., 1.), sns.color_palette('Set2', 10)[3]]
+        vp.ClustermapPlot(the_df, [ov], fig_fname, imf_petmri_names, vp.featurename_redef_petmr,vp.featurelabel_redef_petmr, idvar_color_pal_mode=2, var_title=['Bone Mets'],var_color_pal=[the_pal])
+    elif re.search('OS_(.+)', ov) or re.search('DF_(.+)',ov):
+        fig_fname = '{}/clustermap_{}_kmax{}.pdf'.format(cc_dir, ov, the_N_cluster)
+        the_pal = [(1., 1., 1.), sns.color_palette('Set2', 10)[3]]
+        print(ov, fig_fname)
+        vp.ClustermapPlot(the_df, [ov], fig_fname, imf_petmri_names, vp.featurename_redef_petmr, vp.featurelabel_redef_petmr, idvar_color_pal_mode=2,var_color_pal=[the_pal])
     elif ov == 'BC_subtype':
         fig_fname = '{}/clustermap_BCsubtype_kmax{}.pdf'.format(cc_dir,the_N_cluster)
         vp.ClustermapPlot(the_df,[ov],fig_fname,imf_petmri_names, vp.featurename_redef_petmr,vp.featurelabel_redef_petmr,idvar_color_pal_mode=2, var_title=['Breast cancer subtype'])
@@ -245,14 +266,11 @@ for ov in the_outcome_vars_list:
         colors = ['windows blue', 'amber', 'greyish', 'brick']
         histology_pal = sns.xkcd_palette(colors)
         vp.ClustermapPlot(the_df, [ov], fig_fname, imf_petmri_names, vp.featurename_redef_petmr,vp.featurelabel_redef_petmr,idvar_color_pal_mode=2, var_title=['Tumor Histology'], var_color_pal=[histology_pal])
-    elif ov == 'Diseasefree_5yr':
-        fig_fname = '{}/clustermap_df_5yr_kmax{}.pdf'.format(cc_dir, the_N_cluster)
-        df5yr_pal = [(1., 1., 1.), sns.color_palette('Set2', 10)[3]]
-        vp.ClustermapPlot(the_df, [ov], fig_fname, imf_petmri_names, vp.featurename_redef_petmr,vp.featurelabel_redef_petmr,idvar_color_pal_mode=2, var_title=['5-yr Disease Free'],var_color_pal=[df5yr_pal])
     elif ov == 'Recurrence_Type':
         fig_fname = '{}/clustermap_recurtype_kmax{}.pdf'.format(cc_dir, the_N_cluster)
         recurtype_pal = sns.light_palette('navy', n_colors=len(the_df['Recurrence_Type'].unique()), reverse=True)
         vp.ClustermapPlot(the_df, [ov], fig_fname, imf_petmri_names, vp.featurename_redef_petmr,vp.featurelabel_redef_petmr,idvar_color_pal_mode=2, var_title=['Recurrence Type'],var_color_pal=[recurtype_pal])
+
     # elif ov == 'Recurrence_CR_1':
     #     fig_fname = '{}/clustermap_recurstatus1_kmax{}.pdf'.format(cc_dir, the_N_cluster)
     #     recur_pal1 = [(1., 1., 1.), sns.color_palette('Set2', 10)[3], sns.color_palette('Set2', 10)[7]]
@@ -272,15 +290,15 @@ for ov in the_outcome_vars_list:
     #                       vp.featurelabel_redef_petmr, idvar_color_pal_mode=2, var_title=['Recurrence'],
     #                       var_color_pal=[recur_pal1])
     # if ov == 'Recurrence_4':
-    # fig_fname = '{}/clustermap_recur4_kmax{}.pdf'.format(cc_dir, the_N_cluster)
+    #     fig_fname = '{}/clustermap_recur4_kmax{}.pdf'.format(cc_dir, the_N_cluster)
     #     recur_pal1 = [(1., 1., 1.), sns.color_palette('Set2', 10)[3]]
     #     vp.ClustermapPlot(the_df, [ov], fig_fname, imf_petmri_names, vp.featurename_redef_petmr,
     #                       vp.featurelabel_redef_petmr, idvar_color_pal_mode=2, var_title=['Recurrence'],
     #                       var_color_pal=[recur_pal1])
 
-# print df_chi2_outcome_all
-chi2_outcome_fname = '{}/BestChi2_outcome_Ncluster{}.csv'.format(im_dir, the_N_cluster)
-df_chi2_outcome_all.to_csv(chi2_outcome_fname)
+# # print df_chi2_outcome_all
+# chi2_outcome_fname = '{}/BestChi2_outcome_Ncluster{}.csv'.format(im_dir, the_N_cluster)
+# df_chi2_outcome_all.to_csv(chi2_outcome_fname)
 
 # # combine the cs_class to jdf (combined PET and MRI feature data)
 # # determine the optimal clustering setting for a given N_cluster (determined by maximum median cluster consensus)

@@ -48,7 +48,6 @@ cs_class_fname = '{}/ConsensusClass_kmax{}.csv'.format(cc_dir, the_Ncluster)
 df_cs = pd.read_csv(cs_class_fname)
 df_cs.columns = ['feature', 'cs_class']
 
-
 df_cs = df_cs.sort_values('cs_class')
 idx = df_cs['feature'].tolist()
 
