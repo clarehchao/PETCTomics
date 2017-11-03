@@ -20,14 +20,13 @@ info_dict = {'spearmancorr': ('Spearman\'s\nCorr', ['Tumor_Grade','T_stage','N_s
 fnames = ['{}/assoc_{}_all_v2.csv'.format(im_dir, k) for k in info_dict.keys()]
 corr_method = 'fdr_bh'
 
-
 # the_dfs = [pd.read_csv(ff) for ff in fnames]
 # for ft, df in zip(filetags, the_dfs):
 #     st.apply_mult_corr1(df, im_dir, ft)
 
-# # use default multiple test correction setting, e.g. fdr_bh with alpha=0.5
-# for ff in fnames:
-#     st.apply_mult_corr2(ff, corr_method=corr_method)
+# use default multiple test correction setting, e.g. fdr_bh with alpha=0.5
+for ff in fnames:
+    st.apply_mult_corr2(ff, corr_method=corr_method)
 
 drop_feat_name = ['MRI_VOLUME_BLUE','MRI_VOLUME_GREEN','MRI_VOLUME_PURPLE','MRI_VOLUME_RED',
                   'MRI_VOLUME_TUMOR', 'MRI_VOLUME_TUM_BLU','MRI_VOLUME_WHITE','PET_SUV_max',

@@ -128,7 +128,8 @@ def ClustermapPlot(the_df, varname, fig_fname, img_feature_names,featname_def_fu
         img_feature_labels_order = img_feature_lut.keys()
     elif idvar_color_pal_mode == 2:
         img_label_unique = list(set(img_feature_labels))
-        img_label_unique.remove('Modality-specific metrics')
+        if 'Modality-specific metrics' in img_label_unique:
+            img_label_unique.remove('Modality-specific metrics')
         imf_label_modality = [re.search(r'(.+) (.+)', ss).group(2) for ss in img_label_unique if re.search(r'(.+) (.+)', ss)]
         df_tmp = pd.DataFrame({'imf_label': img_label_unique, 'modality': imf_label_modality})
         # find out the freq of the different type of image modalities
@@ -142,7 +143,7 @@ def ClustermapPlot(the_df, varname, fig_fname, img_feature_names,featname_def_fu
             img_feature_pal = img_feature_pal + imf_pal_tmp
         df_tmp.sort_values('modality',inplace=True)
         idx_lst = df_tmp.index.tolist()
-        a,b = idx_lst.index(1), idx_lst.index(5)
+        a,b = idx_lst.index(1), idx_lst.index(len(idx_lst)-1)
         idx_lst[b], idx_lst[a] = idx_lst[a], idx_lst[b]
         imf_label_order = df_tmp.loc[idx_lst]
         df_tmp2 = pd.DataFrame([['Modality-specific metrics','other']], columns=['imf_label','modality'])
@@ -197,10 +198,15 @@ def ClustermapPlot(the_df, varname, fig_fname, img_feature_names,featname_def_fu
     sns.set()
     sns.set(font='Arial')
 
+    # g = sns.clustermap(df_final, col_cluster=False, row_cluster=False,
+    #                    col_colors=clinical_data_colors, row_colors=df_img_feature_colors,
+    #                    z_score=0, cmap=cmap, linewidths=0, xticklabels=False, yticklabels=True,
+    #                    figsize=(15, 15), vmin=-5., vmax=5.)
     g = sns.clustermap(df_final, col_cluster=False, row_cluster=False,
                        col_colors=clinical_data_colors, row_colors=df_img_feature_colors,
-                       z_score=0, cmap=cmap, linewidths=0, xticklabels=False, yticklabels=True,
+                       z_score=0, cmap=cmap, linewidths=0, xticklabels=False, yticklabels=False,
                        figsize=(15, 15), vmin=-5., vmax=5.)
+
     plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0)
 
     # display the legend for the image feature colormap by adding a empty bar plot but display the legend
@@ -225,7 +231,8 @@ def ClustermapPlot(the_df, varname, fig_fname, img_feature_names,featname_def_fu
                              ncol=int(math.ceil(len(unique_var_labels) * 0.5)))
 
     # position the heatmap colorbar appropriately
-    g.cax.set_position([0.15, .2, .03, .45])
+    # g.cax.set_position([0.15, .2, .03, .45])
+    g.cax.set_position([0.92, .2, .03, .45])
     g.cax.set_title('z-score')
     g.ax_heatmap.set(xlabel='', ylabel='')
 

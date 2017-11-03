@@ -29,12 +29,15 @@ df_data = pd.read_csv(fname)
 # pat = re.compile('texture_|FOstats_|ShapeSize_')
 # feat_names = [ss for ss in df_data.columns.tolist() if pat.match(ss)]
 # feat_tag = 'pet_mr_radiomics'
-#
+
 # # scale the features to z-score
 # df_data[feat_names] = df_data[feat_names].apply(zscore)
 
-feat_names = ['BC_subtype']
-feat_tag = 'BC_subtype'
+# feat_names = ['BC_subtype']
+# feat_tag = 'BC_subtype'
+
+feat_names = ['Tumor_Grade']
+feat_tag = 'Tumor_Grade'
 
 df_yr = range(1,6,1)
 outcome_name_lst = ['DF_{}yr'.format(yy) for yy in df_yr]
@@ -48,11 +51,6 @@ n_fold = 3
 # n_trials = 100
 n_trials = 10
 coef_thresh = 0.5
-
-# from sklearn import tree
-# clf = tree.DecisionTreeClassifier()
-# clf_name = 'DecTree'
-# params_dict = {'criterion': ['gini','entropy'], 'splitter':['best','random'], 'max_depth': range(1,20,3), 'min_samples_split': range(2,6,1)}
 
 # from sklearn.linear_model import LogisticRegression
 # clf = LogisticRegression()
@@ -74,12 +72,31 @@ coef_thresh = 0.5
 # clf_name = 'SVM'
 # params_dict = {'C': np.arange(0.00001,1.00001,0.1), 'kernel':['linear'], 'max_iter':[5000,10000,20000,30000],'probability':[True]}
 
-
 from sklearn.ensemble import RandomForestClassifier
 clf = RandomForestClassifier()
 clf_name = 'RandomForest'
 params_dict = {'n_estimators': range(1,15,2), 'criterion':['gini','entropy'],
                'max_features':['auto','sqrt','log2'], 'min_samples_split': range(2,12,2)}
+
+# from sklearn.linear_model import SGDClassifier
+# clf = SGDClassifier()
+# clf_name = 'SGD'
+# params_dict = {'loss':['log'],
+#                'penalty':['elasticnet'],
+#                'l1_ratio': np.arange(0.0, 1.05,0.05),
+#                'max_iter': [5000, 100000,20000,30000]}
+
+# from sklearn.ensemble import ExtraTreesClassifier
+# clf = ExtraTreesClassifier()
+# clf_name = 'ExtrTree'
+# params_dict = {'n_estimators': np.arange(1,21,2), 'criterion':['gini','entropy'],
+#                'max_features':['auto','sqrt','log2',None]}
+
+# from sklearn import tree
+# clf = tree.DecisionTreeClassifier()
+# clf_name = 'DecTree'
+# params_dict = {'criterion': ['gini','entropy'], 'splitter':['best','random'], 'max_depth': range(1,20,3), 'min_samples_split': range(2,6,1)}
+
 
 for ocn in outcome_name_lst:
     df_tmp = df_data.ix[:,feat_names + [ocn]]

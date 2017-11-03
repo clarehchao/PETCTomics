@@ -48,8 +48,7 @@ def nested_CV(X, y, clf, params_dict, n_fold, n_trials, feat_names, feat_tag, co
                 inner_scores = []
                 # inner cross-validation
                 skf_inner = StratifiedKFold(n_splits=n_fold, shuffle=True)
-                for fold_inner, (train_index_inner, test_index_inner) in enumerate(
-                        skf_inner.split(X_train_outer, y_train_outer)):
+                for fold_inner, (train_index_inner, test_index_inner) in enumerate(skf_inner.split(X_train_outer, y_train_outer)):
                     # split the training data of outer CV
                     X_train_inner, X_test_inner = X_train_outer[train_index_inner], X_train_outer[test_index_inner]
                     y_train_inner, y_test_inner = y_train_outer[train_index_inner], y_train_outer[test_index_inner]
