@@ -29,7 +29,7 @@ def nested_CV(X, y, clf, params_dict, n_fold, n_trials, feat_names, feat_tag, co
 
     unbias_score_arry = np.zeros(n_trials)
     lst_data_all = []
-    data_col_names = ['trial_n', 'fold_n', 'best_params', 'auc', 'feat_name', 'feat_importance']
+    data_col_names = ['trial_n', 'fold_n', 'N_sample', 'best_params', 'auc', 'feat_name', 'feat_importance']
 
     for nn in range(n_trials):
         skf_outer = StratifiedKFold(n_splits=n_fold, shuffle=True)
@@ -90,7 +90,7 @@ def nested_CV(X, y, clf, params_dict, n_fold, n_trials, feat_names, feat_tag, co
             score = auc(fpr, tpr)
             plt.plot(fpr, tpr, lw=1, alpha=0.3, label='ROC fold %d (AUC = %0.2f)' % (fold, score))
             # score = clf.score(X_test_outer, y_test_outer)
-            tmp = dict(zip(data_col_names, [nn, fold, the_opt_param, score, feat_names, feat_importance.flatten()]))
+            tmp = dict(zip(data_col_names, [nn, fold, len(X_train_outer), the_opt_param, score, feat_names, feat_importance.flatten()]))
             lst_data_all.append(tmp)
             # score = f1_score(y_test_outer, clf.predict(X_test_outer))
             # score = roc_auc_score(y_test_outer, clf.predict_proba(X_test_outer)[:,1])

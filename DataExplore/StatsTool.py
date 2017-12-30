@@ -19,6 +19,7 @@ def proportion_table(the_df,var1,var2, table_margin=False):
 
     df_tmp = the_df.ix[:,[var1,var2]]
     df_tmp = df_tmp.dropna()
+    print(df_tmp[var1].value_counts())
 
     the_observed_tab0 = pd.crosstab(df_tmp[var1], df_tmp[var2], margins=table_margin)
     # the_observed_tab0.columns = df_tmp[var2].unique().tolist() + ['row_totals']
@@ -48,6 +49,7 @@ def chi2test(the_df,var1,var2):
     the_observed_tab = pd.crosstab(df_tmp[var1], df_tmp[var2], margins=True)
     the_observed_tab.columns = df_tmp[var2].unique().tolist() + ['row_totals']
     the_observed_tab.index = df_tmp[var1].unique().tolist() + ['col_totals']
+    # print(the_observed_tab)
 
     observed = the_observed_tab.ix[0:-1, 0:-1]
 
@@ -87,7 +89,7 @@ def chi2test(the_df,var1,var2):
     crammersV = np.sqrt(phi2corr / min( (kcorr - 1), (rcorr - 1)))
 
     # print chi2,pval,dof,expected
-    return chi2, pval, dof, expected,N_sample, crammersV
+    return chi2, pval, dof, expected,N_sample, crammersV, the_observed_tab
     # return chi2, pval, dof, expected, N_sample
 
 def apply_mult_corr1(the_df, save_dir, file_tag):

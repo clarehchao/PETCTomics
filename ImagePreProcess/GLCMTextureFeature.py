@@ -420,9 +420,9 @@ class GLCMTextureFeature:
     def _compute_sum_entropy(self):
         self._sum_entropy = -np.sum(self._p_xplusy * ma.log2(self._p_xplusy))
 
-    def _compute_sum_var(self):
-        # self._sum_var = np.sum((self._k1 - self._sum_avg) ** 2 * self._p_xplusy)
-        self._sum_var = np.sum((self._k1 - self._sum_entropy)**2 * self._p_xplusy)
+    def _compute_sum_var(self): # same as cluster tendency (definition has some variation as shown below)
+        # self._sum_var = np.sum((self._k1 - self._sum_avg) ** 2 * self._p_xplusy)  # according to image biomarker standard
+        self._sum_var = np.sum((self._k1 - self._sum_entropy)**2 * self._p_xplusy)  # according to http://earlglynn.github.io/RNotes/package/EBImage/Haralick-Textural-Features.html
 
     def _compute_diff_avg(self):
         self._diff_avg = np.sum(self._k2 * self._p_xminusy)

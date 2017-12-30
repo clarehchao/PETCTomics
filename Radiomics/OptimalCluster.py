@@ -32,7 +32,9 @@ the_mri_binwidth = 5
 # get all the consensus clustering result and determine the BEST cluster result
 # im_dir = '{}/her2_Analysis/PETMRI/PETgbin{}_imgbin{}_MRItp{}_gbin{}'.format(rootdir,the_pet_glcmbin,the_pet_imgnorm_bin,the_mri_tp,the_mri_glcmbin)
 im_dir = '{}/her2_Analysis/PETMRI/PETbinwidth{}_MRItp{}_binwidth{}'.format(rootdir,the_pet_binwidth, the_mri_tp, the_mri_binwidth)
-cc_prefix = 'patientConsensusCluster'
+Nrep = 10000
+# cc_prefix = 'patientConsensusCluster'
+cc_prefix = 'patientConsensusCluster_Rep{}'.format(Nrep)
 
 #display the maximum consensus clustering algorithm setting for Ncluster = 2,3,4, etc.
 # idx = df_medCC_all.groupby('k')['medianCC'].max()
@@ -93,7 +95,7 @@ df_her2_outcome['MRN'] = df_her2_outcome['MRN'].apply(lambda x: '{0:0>8}'.format
 df_her2_outcome = df_her2_outcome.replace('#VALUE!',np.nan)
 df_her2_outcome['DOB'] = df_her2_outcome['Brith Date'].map(dh.ToCorrectYrDate)
 df_her2_outcome['Age_Dx'] = df_her2_outcome.apply(dh.To_Age_Dx, axis=1)
-print df_her2_outcome['Age_Dx'].median(), df_her2_outcome['Age_Dx'].min(), df_her2_outcome['Age_Dx'].max()
+print(df_her2_outcome['Age_Dx'].median(), df_her2_outcome['Age_Dx'].min(), df_her2_outcome['Age_Dx'].max())
 
 # df_her2_outcome['Recurrence_3'] = df_her2_outcome.apply(dh.recur_func3, axis=1)
 # df_her2_outcome['Recurrence_4'] = df_her2_outcome['Recurrence_3'].map(lambda x: np.nan if x == 2 else x)
@@ -156,6 +158,8 @@ cluster_name = 'cs_class'
 # compute median cluster consensus for all cluster result
 df_medCC_all, df_oi = dh.Median_Cluster_Consensus(im_dir, cc_prefix, the_N_cluster)
 
+#TODO: find the CC setting with the highest CC (not lowest p-value..)!!!
+
 chi2_all_df = pd.DataFrame(columns=('cluster_method','cluster_linkage','dist_method','N_mincluster','N_sample','N_cluster','v1','v2','chi2','pval','cramersV','medianCC'))
 count = 0
 # df_tmp = df_medCC_all[df_medCC_all['k'] == the_N_cluster]
@@ -179,7 +183,7 @@ for ii in range(df_tmp.shape[0]):
     N_mincluster = the_df['cs_class'].value_counts().min()
     for v2 in outcome_name_list:
         # print 'v2 is {}'.format(v2)
-        chi2,pval,dum1,dum2,N_sample,cv = st.chi2test(the_df,cluster_name,v2)
+        chi2,pval,dum1,dum2,N_sample,cv,tab = st.chi2test(the_df,cluster_name,v2)
         chi2_all_df.loc[count] = [the_cm, the_cl, the_dm, N_mincluster, N_sample, k, cluster_name, v2, chi2, pval,cv, medCC]
         count = count + 1
 
@@ -187,15 +191,18 @@ for ii in range(df_tmp.shape[0]):
 # print chi2_all_df[chi2_all_df['v2'] == the_ov_interest]
 
 # save the chi2 result for all data
-chi2_fname = '{}/chi2_Ncluster{}.csv'.format(im_dir, '_'.join(str(x) for x in the_N_cluster))
+chi2_fname = '{}/chi2_Ncluster{}_Rep{}.csv'.format(im_dir, '_'.join(str(x) for x in the_N_cluster), Nrep)
 chi2_all_df.to_csv(chi2_fname)
 
 # get the optimal cluster setting for each outcome variable and plot the clustermap
 fdf = chi2_all_df[chi2_all_df['N_mincluster'] > 5]
-idx = fdf.groupby('v2').apply(lambda df: df.pval.argmin())
+# idx = fdf.groupby('v2').apply(lambda df: df.pval.argmin())
+idx = fdf.groupby('v2').apply(lambda df: df.cramersV.argmax())
+# idx = fdf.groupby('v2').apply(lambda df: df.medianCC.argmax())
 
 # determine the number of outcome variables
 the_outcome_vars_list = chi2_all_df['v2'].unique().tolist()
+# the_outcome_vars_list = ['BC_subtype']
 
 imf_pat = re.compile('texture_|ShapeSize_|FOstats_')
 # imf_petmri_names = [ss for ss in jdf.columns.tolist() if imf_pat.match(ss)] + ['MRI_SERROI_SER_MEAN','MRI_PE2ROI_PE2_PEAK','PET_SUV_max']
@@ -212,6 +219,7 @@ for ov in the_outcome_vars_list:
         cc_dir = '{}/{}_{}_{}_{}'.format(im_dir, cc_prefix, cm,cl,dm)
     else:
         cc_dir = '{}/{}_{}_{}'.format(im_dir, cc_prefix, cm, dm)
+    print(cm,cl,dm)
 
     cs_class_fname = '{}/ConsensusClass_kmax{:.0f}.csv'.format(cc_dir, N_cluster)
     cs_class_df = pd.read_csv(cs_class_fname)
@@ -251,9 +259,10 @@ for ov in the_outcome_vars_list:
         vp.ClustermapPlot(the_df, [ov], fig_fname,imf_petmri_names, vp.featurename_redef_petmr,vp.featurelabel_redef_petmr,idvar_color_pal_mode=2, var_title=['N-stage'])
     elif ov == 'Overall_stage':
         fig_fname = '{}/clustermap_Overallstage_kmax{:.0f}.pdf'.format(cc_dir, N_cluster)
-        vp.ClustermapPlot(the_df, [ov], fig_fname,imf_petmri_names, vp.featurename_redef_petmr,vp.featurelabel_redef_petmr,idvar_color_pal_mode=2, var_title=['Overall stage'])
+        the_pal = sns.color_palette('Purples', len(the_df[ov].unique()))
+        vp.ClustermapPlot(the_df, [ov], fig_fname,imf_petmri_names, vp.featurename_redef_petmr,vp.featurelabel_redef_petmr,idvar_color_pal_mode=2, var_title=['Overall stage'], var_color_pal=[the_pal])
     elif ov == 'Overall_stage_2':
-        fig_fname = '{}/clustermap_Overallstage_kmax{:.0f}.pdf'.format(cc_dir, N_cluster)
+        fig_fname = '{}/clustermap_Overallstage2_kmax{:.0f}.pdf'.format(cc_dir, N_cluster)
         vp.ClustermapPlot(the_df, [ov], fig_fname,imf_petmri_names, vp.featurename_redef_petmr,vp.featurelabel_redef_petmr,idvar_color_pal_mode=2, var_title=['Overall stage'])
     elif ov == 'TripleNeg':
         fig_fname = '{}/clustermap_TripleNeg_kmax{:.0f}.pdf'.format(cc_dir, N_cluster)
@@ -300,7 +309,9 @@ for ov in the_outcome_vars_list:
     #                       var_color_pal=[recur_pal1])
 
 # print df_chi2_outcome_all
-chi2_outcome_fname = '{}/BestChi2_outcome_Ncluster{}.csv'.format(im_dir, '_'.join(str(x) for x in the_N_cluster))
+# chi2_outcome_fname = '{}/BestChi2_outcome_Ncluster{}.csv'.format(im_dir, '_'.join(str(x) for x in the_N_cluster))
+chi2_outcome_fname = '{}/BestCVChi2_outcome_Ncluster{}_Rep{}.csv'.format(im_dir, '_'.join(str(x) for x in the_N_cluster), Nrep)
+# chi2_outcome_fname = '{}/BestMedCCChi2_outcome_Ncluster{}_3.csv'.format(im_dir, '_'.join(str(x) for x in the_N_cluster))
 df_chi2_outcome_all.to_csv(chi2_outcome_fname)
 
 # print the number break down for DF_xxxx

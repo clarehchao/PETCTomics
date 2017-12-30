@@ -245,16 +245,16 @@ def Min_Ncluster_CC(cc_dir):
 
 
 def Median_Cluster_Consensus(the_dir, dir_prefix, the_N_cluster_list=None):
-    all_dir = [d for d in glob.glob('{}/{}*'.format(the_dir, dir_prefix)) if os.path.isdir(d)]
+    all_dir = [d for d in glob.glob('{}/{}_*'.format(the_dir, dir_prefix)) if os.path.isdir(d)]
 
     df_medCC_all = pd.DataFrame()
     for dd in all_dir:
         # deteremine the cluster method and etc.
-        tmp = os.path.basename(dd).split('_')
-        if len(tmp) == 3:
-            dummy, cm, dm = tmp
+        tmp = filter(None, os.path.basename(dd).replace(dir_prefix,'').split('_'))
+        if len(tmp) == 2:
+            cm, dm = tmp
         else:
-            dummy, cm, cl, dm = tmp
+            cm, cl, dm = tmp
         cc_fname = '{}/ClusterConsensus.csv'.format(dd)
         df_cc = pd.read_csv(cc_fname)
         df_Nmincluster = Min_Ncluster_CC(dd)
@@ -266,7 +266,7 @@ def Median_Cluster_Consensus(the_dir, dir_prefix, the_N_cluster_list=None):
                 mc = df_cc.groupby('k').agg({'clusterConsensus': custom_median})
                 mc = mc.reset_index()
                 mc['cluster_method'] = cm
-                if len(tmp) == 3:
+                if len(tmp) == 2:
                     mc['cluster_method'] = cm
                     mc['cluster_linkage'] = np.nan
                     mc['dist_method'] = dm
@@ -282,7 +282,7 @@ def Median_Cluster_Consensus(the_dir, dir_prefix, the_N_cluster_list=None):
         else:
             mc = df_cc.groupby('k').agg({'clusterConsensus': custom_median})
             mc = mc.reset_index()
-            if len(tmp) == 3:
+            if len(tmp) == 2:
                 mc['cluster_method'] = cm
                 mc['cluster_linkage'] = np.nan
                 mc['dist_method'] = dm

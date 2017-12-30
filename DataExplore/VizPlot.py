@@ -165,14 +165,16 @@ def ClustermapPlot(the_df, varname, fig_fname, img_feature_names,featname_def_fu
     var_labels_dict = {}
     var_lut_dict = {}
     for ii, vv in enumerate(varname):
+        var_labels = [df_pivot_col_unique[i][ii] for i in range(len(df_pivot_col_unique))]
+        unique_var_labels = list(set(var_labels))
+
         if var_color_pal:
             var_pal = var_color_pal[ii]
         else:
-            var_pal = sns.color_palette('Blues', len(df_pivot_col_unique))
-
-        var_labels = [df_pivot_col_unique[i][ii] for i in range(len(df_pivot_col_unique))]
-        unique_var_labels = list(set(var_labels))
+            # make sure the default palette is made with the # of unique outcome variables
+            var_pal = sns.color_palette('Blues', len(var_labels))
         var_lut = dict(zip(unique_var_labels, var_pal))
+
 
         # save var_lables and var_lut for legend display
         if var_title:
@@ -183,7 +185,6 @@ def ClustermapPlot(the_df, varname, fig_fname, img_feature_names,featname_def_fu
             var_labels_dict[vv] = unique_var_labels
             var_lut_dict[vv] = var_lut
             clinical_data_colors[vv] = pd.Series(var_labels, index=df_pivot_col_unique).map(var_lut)
-
 
     csclass_labels = [df_pivot_col_unique[i][ii + 1] for i in range(len(df_pivot_col_unique))]
     unique_csclass_labels = list(set(csclass_labels))
