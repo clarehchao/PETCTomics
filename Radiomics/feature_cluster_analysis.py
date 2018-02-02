@@ -73,24 +73,24 @@ else: # for spearmancorr data
 
 imf_order.reverse()
 
-# heatmap and tables of KW H test p-val
-the_tab1 = df_assoc.pivot('feature', 'outcome', 'pval')
-the_tab1 = the_tab1.ix[idx]
-the_tab1.columns = [col_label_lut[ss] for ss in the_tab1.columns]
-the_tab1_oi = the_tab1.ix[:,imf_order]
+# # heatmap and tables of KW H test p-val
+# the_tab1 = df_assoc.pivot('feature', 'outcome', 'pval')
+# the_tab1 = the_tab1.ix[idx]
+# the_tab1.columns = [col_label_lut[ss] for ss in the_tab1.columns]
+# the_tab1_oi = the_tab1.ix[:,imf_order]
 row_label_title = 'feature CS class'
-if corr_type == 1:
-    fname_tab1 = '{}/kruskalwallis_pval_featuresVSoutcome.csv'.format(im_dir)
-    the_tab1_oi.to_csv(fname_tab1)
-
-    # the mask: true, will mask data, false: will NOT mask dataaΩ
-    # fig_name = '{}/featureVSoutcome_KWtestPval_Ncluster{}_nomask.pdf'.format(cc_dir, the_Ncluster)
-    # vp.clustermap_plot_simple(the_tab1_oi, row_labels, row_label_title=row_label_title, fig_name=fig_name, value_title='Kruskal-Wallis Test\nP-value')
-
-    fig_name = '{}/featureVSoutcome_KWtestPval_Ncluster{}_withmask.pdf'.format(cc_dir, the_Ncluster)
-    the_mask = the_tab1_oi > 0.05
-    vminmax = [0, 0.05]
-    vp.clustermap_plot_simple(the_tab1_oi, row_labels, row_label_title=row_label_title, vminmax=vminmax,mask=the_mask, fig_name=fig_name, value_title='Kruskal-Wallis Test\nP-value')
+# if corr_type == 1:
+#     fname_tab1 = '{}/kruskalwallis_pval_featuresVSoutcome.csv'.format(im_dir)
+#     the_tab1_oi.to_csv(fname_tab1)
+#
+#     # the mask: true, will mask data, false: will NOT mask dataaΩ
+#     # fig_name = '{}/featureVSoutcome_KWtestPval_Ncluster{}_nomask.pdf'.format(cc_dir, the_Ncluster)
+#     # vp.clustermap_plot_simple(the_tab1_oi, row_labels, row_label_title=row_label_title, fig_name=fig_name, value_title='Kruskal-Wallis Test\nP-value')
+#
+#     fig_name = '{}/featureVSoutcome_KWtestPval_Ncluster{}_withmask.pdf'.format(cc_dir, the_Ncluster)
+#     the_mask = the_tab1_oi > 0.05
+#     vminmax = [0, 0.05]
+#     vp.clustermap_plot_simple(the_tab1_oi, row_labels, row_label_title=row_label_title, vminmax=vminmax,mask=the_mask, fig_name=fig_name, value_title='Kruskal-Wallis Test\nP-value')
 
 # heatmap of corr coeff
 the_tab2 = df_assoc.pivot('feature', 'outcome', 'corr_coeff')
@@ -115,7 +115,8 @@ else:
 # the_mask = the_tab2_oi < 0.3
 # the_mask = the_tab1_oi > 0.05
 cor_coeff_cutoff = 0.3
-the_mask = (the_tab1_oi > 0.05) | (abs(the_tab2_oi) < cor_coeff_cutoff)
+# the_mask = (the_tab1_oi > 0.05) | (abs(the_tab2_oi) < cor_coeff_cutoff)
+the_mask = abs(the_tab2_oi) < cor_coeff_cutoff
 # vminmax = [df_assoc['corr_coeff'].min(), df_assoc['corr_coeff'].max()]
 vminmax = [cor_coeff_cutoff, df_assoc['corr_coeff'].max()]
 
@@ -123,7 +124,7 @@ if corr_type == 1:
     var_title = 'Multiple\nCorr. Coeff.\nfor Regression'
 else:
     var_title = 'Spearman\'s Rank\nCorrelation'
-vp.clustermap_plot_simple(the_tab2_oi, row_labels, row_label_title=row_label_title, vminmax=vminmax, mask=the_mask, fig_name=fig_name, value_title=var_title)
+vp.clustermap_plot_simple(the_tab2_oi, 1, row_labels, row_label_title=row_label_title, vminmax=vminmax, mask=the_mask, fig_name=fig_name, value_title=var_title)
 
 
 

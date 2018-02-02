@@ -16,7 +16,7 @@ import numpy as np
 
 im_dir = '/Users/shuang/Documents/Proj_Radiomics/data/her2/her2_Analysis/PETMRI/PETbinwidth0.1_MRItp2_binwidth5'
 info_dict = {'spearmancorr': ('Spearman\'s\nCorr', ['Tumor_Grade','T_stage','N_stage','Overall_stage'],['Tumor Grade', 'T stage', 'N stage', 'Overall stage']),
-             'corr': ('Mutiple Reg\nCorr',['DF_1yr','DF_2yr','DF_3yr','DF_4yr','DF_5yr','BC_subtype'], ['Disease free at {} yr'.format(ii) for ii in range(1,6)] + ['Breast cancer subtype'])}
+             'corr': ('Mutiple Reg\nProportion of Variance',['DF_1yr','DF_2yr','DF_3yr','DF_4yr','DF_5yr','BC_subtype'], ['Disease free at {} yr'.format(ii) for ii in range(1,6)] + ['Breast cancer subtype'])}
 fnames = ['{}/assoc_{}_all_v2.csv'.format(im_dir, k) for k in info_dict.keys()]
 corr_method = 'fdr_bh'
 
@@ -33,6 +33,7 @@ drop_feat_name = ['MRI_VOLUME_BLUE','MRI_VOLUME_GREEN','MRI_VOLUME_PURPLE','MRI_
                   'MRI_PE2ROI_SER_MEAN','MRI_SERROI_PE2_PEAK']
 
 corr_thresh = 0.20
+rmeg2_thresh = 0.04
 
 for k, (vv, foi, ftnames) in info_dict.items():
     corr_fname = '{}/assoc_{}_all_v2_pvalcorr.csv'.format(im_dir,k)
@@ -58,11 +59,14 @@ for k, (vv, foi, ftnames) in info_dict.items():
     if k == 'spearmancorr':
         tmp1 = the_tab2.abs()
         indx_title = 'feature / Spearman\'s rank coefficient'
+        thresh = corr_thresh
     else:
         tmp1 = the_tab2
-        indx_title = 'feature / Multiple regression coefficient'
-    the_mask = tmp1 < corr_thresh
-    tmp2 = the_tab2[tmp1 >= corr_thresh]
+        indx_title = 'feature / Multiple regression proportion of variance'
+        thresh = rmeg2_thresh
+
+    the_mask = tmp1 < thresh
+    tmp2 = the_tab2[tmp1 >= thresh]
 
     vminmax = [np.nanmin(tmp2.values), np.nanmax(tmp2.values)]
 

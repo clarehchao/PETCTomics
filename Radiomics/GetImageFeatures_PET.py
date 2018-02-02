@@ -68,11 +68,15 @@ if __name__ == '__main__':
     mem_use = []
     the_select_ids = [dd for dd in all_pt_id if dd >= pid_start and dd < pid_end]
     save_dir = '{}/clare_work/Data/her2_ImageFeatures/IsoVoxelSize'.format(rootdir)
+
+    lst_img_vox_size = []
+    col_names = ['pt_id', 'MRN', 'voxsize_mm_x', 'voxsize_mm_y', 'voxsize_mm_z']
+
     for pt_id in the_select_ids:
         print 'patient id: {}'.format(pt_id)
 
         # PETCT image dir
-        pet_fdirs = [d for d in glob.glob('{}/{:0>3d}/*/*'.format(imdir, pt_id)) if os.path.isdir(d)]
+        pet_fdirs = [d for d in glob.glob('{}/{:0>3d}/*/*'.format(imdir, pt_id)) if os.path.isdir(d) and len(d.split('/')[-1]) > 40]
 
         for pet_fdir in pet_fdirs:
             check = re.search(r'(.+)/images_(\w+)/(.+)', pet_fdir)
@@ -94,6 +98,7 @@ if __name__ == '__main__':
             # determine the correct PET series
             pet_img_series = dicom_series.read_files(pet_fdir)
             pet_ds_list = [ss for ss in pet_img_series if len(ss.shape) > 2]
+            print(pet_ds_list)
             if len(pet_ds_list) > 1:
                 print 'Warning! more than ONE dicom_series is found...{}'.format(pet_ds_list)
                 # find the appropriate dicom_series to look at
@@ -136,63 +141,75 @@ if __name__ == '__main__':
             tag_acc_num = Tag(0x0008, 0x0050)
             pt_acc_num = pet_ds.info[tag_acc_num].value
 
-            if is_vis_check == 1:
-                # visual checking of SUV-PET images and the tumor mask
-                ImP.ITK_Image_OverlayPlot(petct_suv_itk,mask_itk,'SUV-PET image + Tumor mask')
+            tmp = dict(zip(col_names, [pt_id, pt_mrn] + IG_pet.samplingRCS))
+            lst_img_vox_size.append(tmp)
 
-            # resample the mask VOI to the desired voxel spacing & determine if the images need to be resampled..
-            check_resample = (np.array(IG_pet.samplingRCS) > the_img_spacingRCS).all()
-            if check_resample:
-                print 'PET image voxsel spacing is coarser than the desired spacing, {}'.format(IG_pet.samplingRCS)
-                final_itk_mask = itkif.ITKImageResample(mask_itk, the_img_spacingRCS,is_mask=True)
-                final_itk_img = itkif.ITKImageResample(petct_suv_itk,the_img_spacingRCS,is_mask=False)
-            else:
-                print 'the image voxel spacing is the same as the desired voxel spacing! NO need to resample the image!'
-                final_itk_img = petct_suv_itk
-                final_itk_mask = mask_itk
+            # if is_vis_check == 1:
+            #     # visual checking of SUV-PET images and the tumor mask
+            #     ImP.ITK_Image_OverlayPlot(petct_suv_itk,mask_itk,'SUV-PET image + Tumor mask')
 
-            if is_vis_check == 1:
-                # visual checking of the final processed PET images and the tumor mask
-                ImP.ITK_Image_OverlayPlot(final_itk_img,final_itk_mask,'Post Resampling + SUV PET image + Tumor mask')
+    #         # resample the mask VOI to the desired voxel spacing & determine if the images need to be resampled..
+    #         check_resample = (np.array(IG_pet.samplingRCS) > the_img_spacingRCS).all()
+    #         if check_resample:
+    #             print 'PET image voxsel spacing is coarser than the desired spacing, {}'.format(IG_pet.samplingRCS)
+    #             final_itk_mask = itkif.ITKImageResample(mask_itk, the_img_spacingRCS,is_mask=True)
+    #             final_itk_img = itkif.ITKImageResample(petct_suv_itk,the_img_spacingRCS,is_mask=False)
+    #         else:
+    #             print 'the image voxel spacing is the same as the desired voxel spacing! NO need to resample the image!'
+    #             final_itk_img = petct_suv_itk
+    #             final_itk_mask = mask_itk
+    #
+    #         if is_vis_check == 1:
+    #             # visual checking of the final processed PET images and the tumor mask
+    #             # ImP.ITK_Image_OverlayPlot(final_itk_img,final_itk_mask,'Post Resampling + SUV PET image + Tumor mask')
+    #             output_dir = '{}/{:0>3d}/images_{}/img_overlay'.format(imdir,pt_id,breast_side)
+    #             print(output_dir)
+    #             ImP.ITK_Image_OverlayPlot(final_itk_img, final_itk_mask, 'Post Resampling + SUV PET image',
+    #                                       vmax_s=0.3, output_dir=output_dir, filetag='PET_{}_{}'.format(pt_id, breast_side))
+    #         # define texture feature list
+    #         theimf = ImF.ImageFeature(final_itk_img,feature_list,final_itk_mask,'dict')
+    #
+    #         pt_features_data = pd.DataFrame()
+    #         for bb in glcm_bin_width:
+    #             print 'bin width: {}'.format(bb)
+    #             theimf._compute_texture_features(Rneighbor, binWidth=bb)
+    #             theimf._compute_first_order_stats(binWidth=bb)
+    #             theimf._compute_shape_size_features()
+    #
+    #             tmp_dict = theimf.feature_output
+    #             tmp_dict['pt_id'] = pt_id
+    #             tmp_dict['pt_mrn'] = pt_mrn
+    #             tmp_dict['pt_accession_num'] = pt_acc_num
+    #             tmp_dict['pet_series_fdir'] = pet_fdir
+    #             tmp_dict['bin_width'] = bb
+    #             tmp_dict['organ_mask'] = 'breast tumor'
+    #             tmp_dict['process_name'] = 'GetImageFeature_VOI'
+    #             tmp_dict['process_version'] = proc_version
+    #             tmp_dict['voxel_size_mm3'] = [tuple(the_img_spacingRCS)] * len(tmp_dict)
+    #             tmp_dict['breast_side'] = breast_side
+    #             # print theimf.feature_output
+    #
+    #             #TODO: instead of writing to a dataframe, consider write to the mongodb db
+    #             pt_features_data = pt_features_data.append(tmp_dict, ignore_index=True)
+    #             # print pt_features_data
+    #
+    #         # monitor the memory usage
+    #         mem_use.append(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+    #
+    #         pt_features_data['pt_id'] = pt_features_data['pt_id'].astype('int')
+    #         dataoutfname = '{}/PET_features_data_v{}_{}_{}.json'.format(save_dir,proc_version,pt_id,breast_side)
+    #         pt_features_data.to_json(dataoutfname)
+    #
+    # # save the memory log
+    # outfile = open('{}/PET_Features_v{}_memory_usage_{}_{}.txt'.format(save_dir,proc_version, pid_start,pid_end), 'w')
+    # outfile.write('\n'.join([str(s) for s in mem_use]))
+    # outfile.close()
 
-            # define texture feature list
-            theimf = ImF.ImageFeature(final_itk_img,feature_list,final_itk_mask,'dict')
-
-            pt_features_data = pd.DataFrame()
-            for bb in glcm_bin_width:
-                print 'bin width: {}'.format(bb)
-                theimf._compute_texture_features(Rneighbor, binWidth=bb)
-                theimf._compute_first_order_stats(binWidth=bb)
-                theimf._compute_shape_size_features()
-
-                tmp_dict = theimf.feature_output
-                tmp_dict['pt_id'] = pt_id
-                tmp_dict['pt_mrn'] = pt_mrn
-                tmp_dict['pt_accession_num'] = pt_acc_num
-                tmp_dict['pet_series_fdir'] = pet_fdir
-                tmp_dict['bin_width'] = bb
-                tmp_dict['organ_mask'] = 'breast tumor'
-                tmp_dict['process_name'] = 'GetImageFeature_VOI'
-                tmp_dict['process_version'] = proc_version
-                tmp_dict['voxel_size_mm3'] = [tuple(the_img_spacingRCS)] * len(tmp_dict)
-                tmp_dict['breast_side'] = breast_side
-                # print theimf.feature_output
-
-                #TODO: instead of writing to a dataframe, consider write to the mongodb db
-                pt_features_data = pt_features_data.append(tmp_dict, ignore_index=True)
-                # print pt_features_data
-
-            # monitor the memory usage
-            mem_use.append(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-
-            pt_features_data['pt_id'] = pt_features_data['pt_id'].astype('int')
-            dataoutfname = '{}/PET_features_data_v{}_{}_{}.json'.format(save_dir,proc_version,pt_id,breast_side)
-            pt_features_data.to_json(dataoutfname)
-
-    # save the memory log
-    outfile = open('{}/PET_Features_v{}_memory_usage_{}_{}.txt'.format(save_dir,proc_version, pid_start,pid_end), 'w')
-    outfile.write('\n'.join([str(s) for s in mem_use]))
-    outfile.close()
+    save_dir = '{}/clare_work/Data/her2_ImageFeatures/IsoVoxelSize'.format(rootdir)
+    df_data_all = pd.DataFrame(lst_img_vox_size)
+    df_data_all = df_data_all.ix[:, col_names]
+    fname = '{}/PET_img_vox_size_mm.csv'.format(save_dir)
+    df_data_all.to_csv(fname)
 
 #TODO:
 # check on 79_R and make sure the mask exists!!!! ==> MRI has a 79_R mask but it doesn't seem to cover the breast section

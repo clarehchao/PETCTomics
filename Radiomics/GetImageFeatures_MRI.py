@@ -63,6 +63,10 @@ if __name__ == '__main__':
 
     mem_use = []
     the_select_ids = [dd for dd in ids if dd >= pid_start and dd < pid_end]
+
+    lst_img_vox_size = []
+    col_names = ['pt_id','MRN','img_time_point','voxsize_mm_x','voxsize_mm_y', 'voxsize_mm_z']
+
     for pt_id in the_select_ids:
         print 'patient id: {}'.format(pt_id)
 
@@ -118,7 +122,6 @@ if __name__ == '__main__':
                     mri_itk_sagittal = ITKImageHelper.itkImage_orient_to_sagittal(mri_itk_img)
                     IG_mri_img = image_geometry.ImageGeometry(mri_itk_sagittal)
                     print 'MRI voxel size (mm^3): {}'.format(IG_mri_img.samplingRCS)
-
                     # # visual checking of images and mask
                     # if is_check_vis == 1:
                     #     ar = IG_mri_img.samplingSRC[2] / IG_mri_img.samplingSRC[1]
@@ -134,76 +137,88 @@ if __name__ == '__main__':
                     pt_acc_num = dceSeries._DS[tag_acc_num].value
                     print 'pt_mrn: {}, pt_acc_num: {}'.format(pt_mrn,pt_acc_num)
 
-                    if ii == 0:
-                        # get VOI info
-                        voi_ixyz,voi_size = ImP.GetVOIinfo(CENTER,HALFLENGTHS,IG_mri_img)
+                    # figure out the MR time point
+                    fname = pt_dmi_list[ii]
+                    the_tp = os.path.basename(os.path.splitext(fname)[0]).split('_')[-1]
+                    tmp = dict(zip(col_names, [pt_id, pt_mrn, the_tp] + IG_mri_img.samplingRCS))
+                    lst_img_vox_size.append(tmp)
 
-                        # Get mask VOI (only need to do it once)
-                        ser_mask_sagittal_roi = ImP.GetITKVOI(ser_mask_sagittal, voi_size, voi_ixyz)
+        #             if ii == 0:
+        #                 # get VOI info
+        #                 voi_ixyz,voi_size = ImP.GetVOIinfo(CENTER,HALFLENGTHS,IG_mri_img)
+        #
+        #                 # Get mask VOI (only need to do it once)
+        #                 ser_mask_sagittal_roi = ImP.GetITKVOI(ser_mask_sagittal, voi_size, voi_ixyz)
+        #
+        #                 # resample the mask VOI to the desired voxel spacing
+        #                 resampled_itk_mask = itkif.ITKImageResample(ser_mask_sagittal_roi,the_img_spacing,is_mask=True)
+        #
+        #
+        #             # get the image VOI
+        #             mri_itk_sagittal_roi = ImP.GetITKVOI(mri_itk_sagittal, voi_size, voi_ixyz)
+        #
+        #             # ## visual checking of images and mask
+        #             # if is_check_vis == 1:
+        #             #     IG_roi_itk_img = image_geometry.ImageGeometry(mri_itk_sagittal_roi)
+        #             #     ar = IG_roi_itk_img.samplingSRC[2] / IG_roi_itk_img.samplingSRC[1]
+        #             #     img_array = ITKImageHelper.itkImage_to_ndarray(mri_itk_sagittal_roi)
+        #             #     mask_array = ITKImageHelper.itkImage_to_ndarray(ser_mask_sagittal_roi)
+        #             #     ImP.display_overlay_volume(img_array, mask_array,'DCE-MRI image VOI + SER mask VOI', aspect=ar)
+        #
+        #             # print out input image geometry info
+        #             ITKImageHelper.itkImage_print_image_geometry(mri_itk_sagittal_roi)
+        #
+        #             # resample the image VOI to the desired voxel spacing
+        #             resampled_itk_img = itkif.ITKImageResample(mri_itk_sagittal_roi,the_img_spacing,is_mask=False)
+        #             IG_resampled_itk_img = image_geometry.ImageGeometry(resampled_itk_img)
+        #
+        #             # visual checking of images and mask
+        #             if ii == 0 and is_check_vis == 1:
+        #                 output_dir = '{}/{:0>3d}/img_overlay'.format(imdir, pt_id)
+        #                 print(output_dir)
+        #                 ImP.ITK_Image_OverlayPlot(resampled_itk_img, resampled_itk_mask, ' Resampled DCE-MRI image + SER mask',
+        #                                           output_dir=output_dir, filetag='MR_DCE_{}_{}'.format(pt_id, breast_side))
+        #
+        #             print 'mask resampled voxel size (mm^3): {}'.format(IG_resampled_itk_img.samplingRCS)
+        #             # define texture feature list
+        #             theimf = ImF.ImageFeature(resampled_itk_img,feature_list,resampled_itk_mask,'dict')
+        #
+        #             for bb in glcm_bin_width:
+        #                 print 'glcm bin width: {}'.format(bb)
+        #                 theimf._compute_texture_features(Rneighbor, binWidth=bb)
+        #                 theimf._compute_first_order_stats(binWidth=bb)
+        #                 theimf._compute_shape_size_features()
+        #
+        #                 tmp_dict = theimf.feature_output
+        #                 tmp_dict['pt_id'] = pt_id
+        #                 tmp_dict['pt_mrn'] = pt_mrn
+        #                 tmp_dict['pt_accession_num'] = pt_acc_num
+        #                 tmp_dict['dce_series_dmi_fname'] = pt_dmi_list[ii]
+        #                 tmp_dict['glcm_bin_width'] = bb
+        #                 tmp_dict['organ_mask'] = 'breast tumor'
+        #                 tmp_dict['process_name'] = 'GetImageFeature_VOI'
+        #                 tmp_dict['process_version'] = proc_version
+        #                 tmp_dict['voxel_size_mm3'] = the_img_spacing
+        #
+        #                 #TODO: instead of writing to a dataframe, consider write to the mongodb db
+        #                 pt_features_data = pt_features_data.append(tmp_dict, ignore_index=True)
+        #                 # print pt_features_data
+        #
+        #     # monitor the memory usage
+        #     mem_use.append(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+        #
+        #     pt_features_data['pt_id'] = pt_features_data['pt_id'].astype('int')
+        #     save_dir = '{}/clare_work/Data/her2_ImageFeatures/IsoVoxelSize'.format(rootdir)
+        #     dataoutfname = '{}/MRI_features_data_v{}_{}_{}.json'.format(save_dir,proc_version, pt_id,breast_side)
+        #     pt_features_data.to_json(dataoutfname)
+        #
+        # # save the memory log
+        # outfile = open('{}/memory_usage_v{}_{}_{}.txt'.format(save_dir,proc_version, pid_start,pid_end), 'w')
+        # outfile.write('\n'.join([str(s) for s in mem_use]))
+        # outfile.close()
 
-                        # resample the mask VOI to the desired voxel spacing
-                        resampled_itk_mask = itkif.ITKImageResample(ser_mask_sagittal_roi,the_img_spacing,is_mask=True)
-
-
-                    # get the image VOI
-                    mri_itk_sagittal_roi = ImP.GetITKVOI(mri_itk_sagittal, voi_size, voi_ixyz)
-
-                    ## visual checking of images and mask
-                    if is_check_vis == 1:
-                        IG_roi_itk_img = image_geometry.ImageGeometry(mri_itk_sagittal_roi)
-                        ar = IG_roi_itk_img.samplingSRC[2] / IG_roi_itk_img.samplingSRC[1]
-                        img_array = ITKImageHelper.itkImage_to_ndarray(mri_itk_sagittal_roi)
-                        mask_array = ITKImageHelper.itkImage_to_ndarray(ser_mask_sagittal_roi)
-                        ImP.display_overlay_volume(img_array, mask_array,'DCE-MRI image VOI + SER mask VOI', aspect=ar)
-
-                    # print out input image geometry info
-                    ITKImageHelper.itkImage_print_image_geometry(mri_itk_sagittal_roi)
-
-                    # resample the image VOI to the desired voxel spacing
-                    resampled_itk_img = itkif.ITKImageResample(mri_itk_sagittal_roi,the_img_spacing,is_mask=False)
-                    IG_resampled_itk_img = image_geometry.ImageGeometry(resampled_itk_img)
-
-                    # visual checking of images and mask
-                    if is_check_vis == 1:
-                        ar = IG_resampled_itk_img.samplingSRC[2]/IG_resampled_itk_img.samplingSRC[1]
-                        img_array = ITKImageHelper.itkImage_to_ndarray(resampled_itk_img)
-                        mask_array = ITKImageHelper.itkImage_to_ndarray(resampled_itk_mask)
-                        ImP.display_overlay_volume(img_array, mask_array, 'DCE-MRI image Resampled VOI + SER mask Resampled VOI', aspect=ar)
-
-                    print 'mask resampled voxel size (mm^3): {}'.format(IG_resampled_itk_img.samplingRCS)
-                    # define texture feature list
-                    theimf = ImF.ImageFeature(resampled_itk_img,feature_list,resampled_itk_mask,'dict')
-
-                    for bb in glcm_bin_width:
-                        print 'glcm bin width: {}'.format(bb)
-                        theimf._compute_texture_features(Rneighbor, binWidth=bb)
-                        theimf._compute_first_order_stats(binWidth=bb)
-                        theimf._compute_shape_size_features()
-
-                        tmp_dict = theimf.feature_output
-                        tmp_dict['pt_id'] = pt_id
-                        tmp_dict['pt_mrn'] = pt_mrn
-                        tmp_dict['pt_accession_num'] = pt_acc_num
-                        tmp_dict['dce_series_dmi_fname'] = pt_dmi_list[ii]
-                        tmp_dict['glcm_bin_width'] = bb
-                        tmp_dict['organ_mask'] = 'breast tumor'
-                        tmp_dict['process_name'] = 'GetImageFeature_VOI'
-                        tmp_dict['process_version'] = proc_version
-                        tmp_dict['voxel_size_mm3'] = the_img_spacing
-
-                        #TODO: instead of writing to a dataframe, consider write to the mongodb db
-                        pt_features_data = pt_features_data.append(tmp_dict, ignore_index=True)
-                        # print pt_features_data
-
-            # monitor the memory usage
-            mem_use.append(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-
-            pt_features_data['pt_id'] = pt_features_data['pt_id'].astype('int')
-            save_dir = '{}/clare_work/Data/her2_ImageFeatures/IsoVoxelSize'.format(rootdir)
-            dataoutfname = '{}/MRI_features_data_v{}_{}_{}.json'.format(save_dir,proc_version, pt_id,breast_side)
-            pt_features_data.to_json(dataoutfname)
-
-        # save the memory log
-        outfile = open('{}/memory_usage_v{}_{}_{}.txt'.format(save_dir,proc_version, pid_start,pid_end), 'w')
-        outfile.write('\n'.join([str(s) for s in mem_use]))
-        outfile.close()
+        save_dir = '{}/clare_work/Data/her2_ImageFeatures/IsoVoxelSize'.format(rootdir)
+        df_data_all = pd.DataFrame(lst_img_vox_size)
+        df_data_all = df_data_all.ix[:, col_names]
+        fname = '{}/MR_img_vox_size_mm.csv'.format(save_dir)
+        df_data_all.to_csv(fname)
