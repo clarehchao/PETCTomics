@@ -46,7 +46,7 @@ def display_volume(theVOI,fig_title,aspect=None,colormap=None,climarray=None):
 def display_overlay_volume(theVOI,theMask,fig_title,aspect=1.0):
     """ scroll through the slices in a VOI by pressing left or right arrow"""
 
-    # plt.switch_backend('Qt4Agg')
+    plt.switch_backend('Qt4Agg')
 
     # generate the colors for your colormap
     color1 = colorConverter.to_rgba('White')
@@ -204,9 +204,9 @@ def TumorSegmentation(theVol,theMask,theImGeo,theVOICenter,theVOIHalflen,aspect=
         display_volume(labels_all,'the initial connected component label: labels_all')
 
     # remove small objects, this may not be necessary since the histogram will be used to filter it out later...
-    print 'before remove_small_object, # of labels: {}'.format(len(np.unique(labels_all)))
+    print('before remove_small_object, # of labels: {}'.format(len(np.unique(labels_all))))
     labels_filter = skm.remove_small_objects(labels_all, connectivity=3,min_size=32)
-    print 'after remove_small_object, # of labels: {}'.format(len(np.unique(labels_filter)))
+    print('after remove_small_object, # of labels: {}'.format(len(np.unique(labels_filter))))
 
     if is_plot:
         # for ll in np.unique(labels_filter):
@@ -237,7 +237,7 @@ def TumorSegmentation(theVol,theMask,theImGeo,theVOICenter,theVOIHalflen,aspect=
         count_thresh_ratio = 0.4
         the_largest_count_label_indx = np.where(hist_label >= count_thresh_ratio*the_max_count)
         the_largest_count_label = bin_edge[the_largest_count_label_indx]
-        print 'theLabel = {}'.format(the_largest_count_label)
+        print('theLabel = {}'.format(the_largest_count_label))
 
         # Create a mask of the label with the largest # of voxels (hopefully the tumor!)
         initial_tumor_mask = np.in1d(labels_filter.ravel(),the_largest_count_label).reshape(labels_filter.shape)
@@ -575,11 +575,12 @@ def ITK_Image_OverlayPlot(itk_img,itk_mask,fig_title=''):
     ig_img = image_geometry.ImageGeometry(itk_img)
     ar = ig_img.samplingRCS[0]/ig_img.samplingRCS[1]
     img_array = ITKImageHelper.itkImage_to_ndarray(itk_img)
-    # print np.nonzero(img_array)
     mask_array = ITKImageHelper.itkImage_to_ndarray(itk_mask)
     check = np.nonzero(mask_array)
+
     s1_idx = np.min(check[0])
     s2_idx = np.max(check[0])
+    print(s1_idx, s2_idx)
 
     # # this works with the cellsite mouse data read in from dicom_series
     # s1_idx = np.min(check[2])

@@ -16,7 +16,7 @@ import numpy as np
 
 im_dir = '/Users/shuang/Documents/Proj_Radiomics/data/her2/her2_Analysis/PETMRI/PETbinwidth0.1_MRItp2_binwidth5'
 info_dict = {'spearmancorr': ('Spearman\'s\nCorr', ['Tumor_Grade','T_stage','N_stage','Overall_stage'],['Tumor Grade', 'T stage', 'N stage', 'Overall stage']),
-             'corr': ('Mutiple Reg\nProportion of Variance',['DF_1yr','DF_2yr','DF_3yr','DF_4yr','DF_5yr','BC_subtype'], ['Disease free at {} yr'.format(ii) for ii in range(1,6)] + ['Breast cancer subtype'])}
+             'corr': ('Mutiple Reg\nProportion of Variance',['DF_1yr','DF_2yr','DF_3yr','DF_4yr','DF_5yr','BC_subtype'], ['Recurrence free at {} yr'.format(ii) for ii in range(1,6)] + ['Breast cancer subtype'])}
 fnames = ['{}/assoc_{}_all_v2.csv'.format(im_dir, k) for k in info_dict.keys()]
 corr_method = 'fdr_bh'
 
@@ -55,7 +55,8 @@ for k, (vv, foi, ftnames) in info_dict.items():
     # the_tab2.rename(index=idx_lut, inplace=True)
 
     # use correlation coeff instead, since the pval with multiple test correction wipe out lots potential variables
-    fig_name = '{}/featureVSoutcome_{}_withmask.pdf'.format(im_dir, k)
+    # fig_name = '{}/featureVSoutcome_{}_withmask.pdf'.format(im_dir, k)
+    fig_name = '{}/featureVSoutcome_{}_nomask.pdf'.format(im_dir, k)
     if k == 'spearmancorr':
         tmp1 = the_tab2.abs()
         indx_title = 'feature / Spearman\'s rank coefficient'
@@ -64,20 +65,22 @@ for k, (vv, foi, ftnames) in info_dict.items():
         tmp1 = the_tab2
         indx_title = 'feature / Multiple regression proportion of variance'
         thresh = rmeg2_thresh
-
+    thresh = 0.0
     the_mask = tmp1 < thresh
     tmp2 = the_tab2[tmp1 >= thresh]
 
     vminmax = [np.nanmin(tmp2.values), np.nanmax(tmp2.values)]
 
-    the_tab3 = vp.clustermap_plot_simple(the_tab2, idvar_color_pal_mode=2, row_label_title='Radiomic Features', vminmax=vminmax,mask=the_mask, fig_name=fig_name, value_title=vv, annot=True, fmt='.2f')
+    # the_tab3 = vp.clustermap_plot_simple(the_tab2, idvar_color_pal_mode=2, row_label_title='Radiomic Features', vminmax=vminmax,mask=the_mask, fig_name=fig_name, value_title=vv, annot=True, fmt='.2f')
+    the_tab3 = vp.clustermap_plot_simple(the_tab2, idvar_color_pal_mode=2, row_label_title='Radiomic Features',
+                                         vminmax=vminmax, mask=the_mask, fig_name=fig_name, value_title=vv)
     # vp.clustermap_plot_simple(the_tab1, idvar_color_pal_mode=2, row_label_title='Radiomic Features', vminmax=vminmax,mask=the_mask, fig_name=fig_name, value_title='Kruskal-Wallis Test\nP-value')
     # # vp.heatmap_plot(the_tab1, the_mask=the_mask, vminmax=[0,0.05], fig_name=fig_name)
 
-    # save as tables for supplementary data for manuscript
-    tab_name = '{}/table_FeatsVS{}.csv'.format(im_dir, k)
-    the_tab3.index.name = indx_title
-    the_tab3.to_csv(tab_name)
+    # # save as tables for supplementary data for manuscript
+    # tab_name = '{}/table_FeatsVS{}.csv'.format(im_dir, k)
+    # the_tab3.index.name = indx_title
+    # the_tab3.to_csv(tab_name)
 
 # # heatmap of corr coeff
 # the_tab2 = df_assoc.pivot('feature', 'outcome', 'corr_coeff')

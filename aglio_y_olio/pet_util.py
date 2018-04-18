@@ -32,13 +32,13 @@ def get_SUV_multiplier(pet_series):
     tag_Units   = Tag(0x0054,0x1001)
     units_field = info[tag_Units]
     units       = units_field.value
-    print 'image units:         {}'.format(units)
+    print('image units:         {}'.format(units))
     
     # weight
     tag_Patient_Weight = Tag(0x0010,0x1030)
     pat_weight_field   = info[tag_Patient_Weight]
     pat_weight         = pat_weight_field.value
-    print 'patient weight (kg): {}'.format(pat_weight)
+    print('patient weight (kg): {}'.format(pat_weight))
     weight_units_factor = 1000.
     
     # injected dose
@@ -52,11 +52,11 @@ def get_SUV_multiplier(pet_series):
     try:
         rad_total_dose_field = rad_pharm_seq[0][tag_Radionuclide_Total_Dose]
     except:
-        print '::O_O:: cannot get the total dose in the image DICOM header'
+        print('::O_O:: cannot get the total dose in the image DICOM header')
         return 0
     rad_total_dose       = rad_total_dose_field.value
     rad_half_life = rad_pharm_seq[0][tag_Radionuclide_Half_life].value  # unit: seconds
-    print 'radionuclide total dose: {}'.format(rad_total_dose)
+    print('radionuclide total dose: {}'.format(rad_total_dose))
 
     # decay corrected the injected dose (or total dose)
     rad_pharm_start_time = rad_pharm_seq[0][tag_Radiopharmaceutical_start_time].value
@@ -75,7 +75,7 @@ def get_SUV_multiplier(pet_series):
     rad_lambda = math.log(2)/rad_half_life  #unit: 1/sec
     decaycorr_rad_total_dose = rad_total_dose*math.exp(-time_elapse_sec*rad_lambda)
 
-    print 'the decay-corrected total dose (MBq):    {}'.format(decaycorr_rad_total_dose)
+    print('the decay-corrected total dose (MBq):    {}'.format(decaycorr_rad_total_dose))
     
     suv_multiplier = float(weight_units_factor*pat_weight) / float(decaycorr_rad_total_dose)
     
