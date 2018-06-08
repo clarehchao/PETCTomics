@@ -7,8 +7,7 @@ Created on Wed Aug 17 18:51:09 2016
 
 #%%
 
-#import dicom
-from dicom.tag import Tag
+from pydicom.tag import Tag
 import datetime
 import math
 import re

@@ -148,6 +148,8 @@ class ImageFeature:
             self._maskImage_ndarray[tmp != 0] = tmp[tmp != 0]
             self._inside_pixel_val = int(np.unique(self._maskImage_ndarray[np.nonzero(self._maskImage_ndarray)])[0])
             self._maskImage_ndarray = self._maskImage_ndarray.astype('bool')
+            print(self._maskImage_ndarray.shape)
+            print(self._inputImage_ndarray.shape)
 
             # compute the image min and max within the mask
             self._maskpix_min = np.amin(self._inputImage_ndarray[self._maskImage_ndarray])
@@ -278,7 +280,8 @@ class ImageFeature:
         # mask surface area
         the_tumor_vol = np.zeros(self._inputImage_ndarray.shape)
         the_tumor_vol[self._maskImage_ndarray] = self._inputImage_ndarray[self._maskImage_ndarray]
-        verts, faces = skm.marching_cubes(the_tumor_vol, 0.0,tuple(vox_size_SRC))
+        verts, faces, _, _ = skm.marching_cubes_lewiner(the_tumor_vol, 0.0, tuple(vox_size_SRC))
+        # verts, faces = skm.marching_cubes(the_tumor_vol, 0.0,tuple(vox_size_SRC))
         surf_area_cm2 = skm.mesh_surface_area(verts, faces) # unit: cm^2
 
         if self._foutput_format == 'df':

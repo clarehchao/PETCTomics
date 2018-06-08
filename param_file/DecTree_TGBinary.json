@@ -1,0 +1,1 @@
+{"rootdir":"/Users/shuang/Documents/Proj_Radiomics/Data/her2", "n_trials": 10, "n_fold": 3, "outcome_names": ["Tumor_Grade_Binary"],"clf_name":"DecTree", "clf_tag": "DecTree", "hyper_params": {"criterion": ["gini","entropy"], "splitter":["best","random"], "max_depth": [1, 4, 7, 10, 13, 16, 19], "min_samples_split": [2, 3, 4, 5]}}

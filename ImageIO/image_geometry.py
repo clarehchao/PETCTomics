@@ -238,9 +238,6 @@ class ImageGeometry:
     # Public methods
     # --------------------------------------------------------------------- 
     def get_geometry_from_dicom_series(self,series):
-
-        print series
-        
         # DICOM IPP <==> position of first voxel (0,0,0) <==> "origin"
         self._origin = [float(i) for i in series.info.ImagePositionPatient]
         

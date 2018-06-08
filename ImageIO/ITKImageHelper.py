@@ -301,7 +301,7 @@ def generate_oriented_itkImage(otherImage=None,pixarray=None,ig=None):
         PIX = otherImage._PIX
         imageGeometry = otherImage._image_geometry
 
-    if pixarray != None and ig != None: # when pixarray and ig are both specified
+    if pixarray is not None and ig is not None: # when pixarray and ig are both specified
         PIX = pixarray
         imageGeometry = ig
 

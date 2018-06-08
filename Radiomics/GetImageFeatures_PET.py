@@ -73,7 +73,7 @@ if __name__ == '__main__':
     col_names = ['pt_id', 'MRN', 'voxsize_mm_x', 'voxsize_mm_y', 'voxsize_mm_z']
 
     for pt_id in the_select_ids:
-        print 'patient id: {}'.format(pt_id)
+        print('patient id: {}'.format(pt_id))
 
         # PETCT image dir
         pet_fdirs = [d for d in glob.glob('{}/{:0>3d}/*/*'.format(imdir, pt_id)) if os.path.isdir(d) and len(d.split('/')[-1]) > 40]
@@ -82,9 +82,9 @@ if __name__ == '__main__':
             check = re.search(r'(.+)/images_(\w+)/(.+)', pet_fdir)
             if check:
                 breast_side = check.group(2)
-                print 'breast side: {}'.format(breast_side)
+                print('breast side: {}'.format(breast_side))
             else:
-                print 'Cannot determine the breast side of the PET images'
+                print('Cannot determine the breast side of the PET images')
                 continue
 
             # Tumor mask .nrrd
@@ -92,15 +92,14 @@ if __name__ == '__main__':
             if check_mask_fname:
                 mask_fname = check_mask_fname[0]
             else:
-                print 'Cannot find the mask .nrrd file with the breast side!'
+                print('Cannot find the mask .nrrd file with the breast side!')
                 continue
 
             # determine the correct PET series
             pet_img_series = dicom_series.read_files(pet_fdir)
             pet_ds_list = [ss for ss in pet_img_series if len(ss.shape) > 2]
-            print(pet_ds_list)
             if len(pet_ds_list) > 1:
-                print 'Warning! more than ONE dicom_series is found...{}'.format(pet_ds_list)
+                print('Warning! more than ONE dicom_series is found...{}'.format(pet_ds_list))
                 # find the appropriate dicom_series to look at
                 dc_lens = [ss.shape[0] for ss in pet_ds_list]
                 pet_ds = pet_ds_list[dc_lens.index(max(dc_lens))]
@@ -113,7 +112,7 @@ if __name__ == '__main__':
                 PIX_pet = pet_ds.get_pixel_array()
                 pet_itk_img = ITKImageHelper.generate_oriented_itkImage(ig=IG_pet, pixarray=PIX_pet)
             else: # use the mevistlab exported NRRD file for the fragmented dicom series (dicom_series and mevislab did not parse the dicom in the same way for some reason...)
-                print '::O_O:: Fragmented dicom series! read the MeVisLab exported NRRD instead of dicom series!'
+                print('::O_O:: Fragmented dicom series! read the MeVisLab exported NRRD instead of dicom series!')
                 pet_nrrd_fname = '{}/PET_voxshiftON_rescale.nrrd'.format(os.path.dirname(pet_fdir))
                 pet_itk_img = ITKImageHelper.itkImage_read(pet_nrrd_fname)
 
@@ -123,10 +122,10 @@ if __name__ == '__main__':
             # Convert raw PET activity concentration to SUV
             suv_factor = pet_util.get_SUV_multiplier(pet_ds)
             if suv_factor == 0:
-                print '::O_O:: cannot calculate the SUV factor!'
+                print('::O_O:: cannot calculate the SUV factor!')
                 continue
             else:
-                print 'suv_factor = {}'.format(suv_factor)
+                print('suv_factor = {}'.format(suv_factor))
                 petct_suv_itk = itkif.ITKImageMultiplyConstant(petct_itk_img_orient,suv_factor)
 
             # get the mask ITK image

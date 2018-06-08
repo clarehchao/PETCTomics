@@ -17,9 +17,10 @@ import numpy as np
 import seaborn as sn
 import matplotlib.pyplot as plt
 import glob
+import json
 
 
-def nested_CV(X, y, clf, params_dict, n_fold, n_trials, feat_names, feat_tag, coef_thresh, im_dir, clf_name, outcome_name):
+def nested_CV(X, y, clf, params_dict, n_fold, n_trials, feat_names, feat_tag, coef_thresh, im_dir, clf_tag, outcome_name, n_Run=0):
 
     items = sorted(params_dict.items())
     param_keys, param_values = zip(*items)
@@ -141,8 +142,12 @@ def nested_CV(X, y, clf, params_dict, n_fold, n_trials, feat_names, feat_tag, co
     # print(unbias_score_arry)
     df_data_all = pd.DataFrame(lst_data_all)
     df_data_all = df_data_all.ix[:, data_col_names]
-    fname = '{}/Learner/{}_IDV{}_DV{}_Trial{}_{}folds.json'.format(im_dir, clf_name, feat_tag, outcome_name, n_trials, n_fold)
+    if n_Run == 0:
+        fname = '{}/Learner/{}_IDV{}_DV{}_Trial{}_{}folds.json'.format(im_dir, clf_tag, feat_tag, outcome_name, n_trials, n_fold)
+    else:
+        fname = '{}/Learner/{}_IDV{}_DV{}_Trial{}_Run{}_{}folds.json'.format(im_dir, clf_tag, feat_tag, outcome_name, n_trials, n_Run, n_fold)
     df_data_all.to_json(fname)
+    print('write json file:{}'.format(fname))
 
 def CombineFiles(data_dir, clf_name, outcome_var, feat_name, n_trial, k_fold):
     """
@@ -166,3 +171,16 @@ def CombineFiles(data_dir, clf_name, outcome_var, feat_name, n_trial, k_fold):
     the_df = pd.concat(lst_dfs, ignore_index=True)
 
     return the_df
+
+def LoadInputParameter(fname):
+    """
+    load the input file and read the parameters into a dictionary via JSON
+    """
+    thedict = {}
+    jdec = json.JSONDecoder()
+    ff = open(fname)
+    for line in ff:
+        thedict = jdec.decode(line)
+    return thedict
+
+

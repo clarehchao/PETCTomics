@@ -47,8 +47,8 @@ import sys
 import os
 import time
 import gc
-import dicom
-from dicom.sequence import Sequence
+import pydicom
+from pydicom.sequence import Sequence
 
 # Try importing numpy
 try:
@@ -329,7 +329,7 @@ def _splitSerieIfRequired_RJH(serie, series):
         series.remove(serie)
 
 
-pixelDataTag = dicom.tag.Tag(0x7fe0, 0x0010)
+pixelDataTag = pydicom.tag.Tag(0x7fe0, 0x0010)
 
 
 def _getPixelDataFromDataset(ds):
@@ -493,9 +493,9 @@ def read_files(path, showProgress=False, readPixelData=False):
 
         # Try loading dicom ...
         try:
-            dcm = dicom.read_file(filename, deferSize)
+            dcm = pydicom.dcmread(filename, deferSize)
             dcm.Filename = filename  # RJH adding this
-        except dicom.filereader.InvalidDicomError:
+        except pydicom.filereader.InvalidDicomError:
             continue  # skip non-dicom file
         except Exception as why:
             if showProgress is _progressCallback:
@@ -545,10 +545,13 @@ def read_files(path, showProgress=False, readPixelData=False):
         #            print 'len filenames: {}'.format(len(tmp_filenames))
         #        print 'info: {}'.format(SS.info)
         try:
+            #print('before _finish()')
             series[i]._finish()
+            #print('after _finish()')
             series_.append(series[i])
+            #print('after append')
         except Exception:
-            print 'skipping serie for some reason: {}'.format(series[i].description)
+            print('skipping serie for some reason: {}'.format(series[i].description))
             pass  # Skip serie (probably report-like file without pixels)
         showProgress(float(i + 1) / len(series))
     showProgress(None)
@@ -765,6 +768,7 @@ class DicomSeries(object):
 
         # The datasets list should be sorted by instance number
         L = self._datasets
+        #print('len(L) = {}'.format(len(L)))
 
         if len(L) == 0:
             return
@@ -788,6 +792,7 @@ class DicomSeries(object):
         sampling = float(ds1.PixelSpacing[0]), float(ds1.PixelSpacing[1])  # row, column
 
         for index in range(len(L)):
+            # print('index = {}'.format(index))
             # The first round ds1 and ds2 will be the same, for the
             # distance calculation this does not matter
 
@@ -802,7 +807,7 @@ class DicomSeries(object):
             if ((self._uniform_orientation == None) | (self._uniform_orientation == True)):
                 if ds2.ImageOrientationPatient != ds1.ImageOrientationPatient:
                     self._uniform_orientation = False
-                    print 'orientation has changed between ds1 and ds2!'
+                    print('orientation has changed between ds1 and ds2!')
 
             # Update distance_sum to calculate distance later
             distance_sum += abs(pos1 - pos2)
@@ -823,27 +828,39 @@ class DicomSeries(object):
             # Store previous
             ds1 = ds2
 
+        #print('befor dataset')
         # Create new dataset by making a deep copy of the first
-        info = dicom.dataset.Dataset()
+        info = pydicom.dataset.Dataset()
+        #print('after dataset')
         firstDs = self._datasets[0]
         for key in firstDs.keys():
+            el = firstDs[key]
+            #print('key = {}'.format(key))
+            #print('tag = {}'.format(el.tag))
+            #print('VR = {}'.format(el.VR))
+            #print('value = {}'.format(el.value))
+            if el.VR == 'IS' and el.value == 'F':
+                print('skip IS and F..')
+                print(firstDs[key])
+                continue
             if key != (0x7fe0, 0x0010):
-                el = firstDs[key]
                 info.add_new(el.tag, el.VR, el.value)
 
+        #print('after key for loop')
         # Finish calculating average distance
         # (Note that there are len(L)-1 distances)
         distance_mean = distance_sum / (len(L) - 1)
-
+        #print('after distance_mean')
         # Store information that is specific for the serie
         self._shape = [len(L), ds2.Rows, ds2.Columns]
         self._sampling = [distance_mean, float(ds2.PixelSpacing[0]),
                           float(ds2.PixelSpacing[1])]
-
+        #print('after shape and sampling..')
         # Store
         self._info = info
 
         # RJH compute _slice_direction
+        #print('before len(L) > 1')
         if len(L) > 1:
             ddd = [0, 0, 0]
             ds1 = L[0]
@@ -856,3 +873,4 @@ class DicomSeries(object):
             normV = np.linalg.norm(V)
             V = V / float(normV)
             self._slice_direction = list(V)
+        #print('after len(L) > 1')

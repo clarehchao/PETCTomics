@@ -1,0 +1,1 @@
+{"rootdir":"/data1/Proj_Radiomics/Data/her2", "n_trials": 1, "n_fold": 3, "outcome_names": ["Tumor_Grade_Binary"],"clf_name":"LogReg", "clf_tag": "L1LiblinearLogReg", "hyper_params": {"penalty":["l1"],"solver":["liblinear"], "C": [0.001],"max_iter": [5000]}}

@@ -1,0 +1,1 @@
+{"rootdir":"/data1/Proj_Radiomics/Data/her2", "n_trials": 1000, "n_fold": 3, "outcome_names": ["Tumor_Grade_Binary"],"clf_name":"SVM", "clf_tag": "SVM", "hyper_params": {"C": [1.0000e-05, 1.0001e-01, 2.0001e-01, 3.0001e-01, 4.0001e-01, 5.0001e-01, 6.0001e-01, 7.0001e-01, 8.0001e-01, 9.0001e-01],"kernel":["linear"], "max_iter":[5000,10000,20000,30000],"probability":[true]}}

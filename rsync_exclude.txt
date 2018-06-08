@@ -1,7 +1,9 @@
 .gitignore
 .git/
 .idea/
+.DS_Store/
 rsync_exclude.txt
 Radiomics/*.txt
-#Radiomics/ClusterConsensusViz.py
-#Radiomics/Chi2Test_Radiomics.py
+requirement.txt
+*.txt
+

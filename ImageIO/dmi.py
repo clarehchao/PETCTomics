@@ -7,7 +7,7 @@ Created on Wed May  4 21:37:12 2016
 
 #%%
 
-import dicom
+import pydicom
 import image_geometry
 import numpy as np
 
@@ -29,23 +29,23 @@ class DMI:
             
     def _load_dmi(self):
         
-        self._DS = dicom.read_file(self._dmi_path)
+        self._DS = pydicom.dcmread(self._dmi_path)
         self._determine_geometry()
         self._load_pixel_data()
         
     def _determine_geometry(self):
 
-        tag_ImagePositionPatient  = dicom.tag.Tag(0x0020,0x0032)
-        tag_ImageDirectionCosines = dicom.tag.Tag(0x0119,0x1030)
-        tag_PixelSpacing          = dicom.tag.Tag(0x0028,0x0030)
-        tag_Rows                  = dicom.tag.Tag(0x0028,0x0010) 
-        tag_Cols                  = dicom.tag.Tag(0x0028,0x0011) 
-        tag_SliceThickness        = dicom.tag.Tag(0x0018,0x0050) 
-        tag_SpacingBetweenSlices  = dicom.tag.Tag(0x0018,0x0088)
+        tag_ImagePositionPatient  = pydicom.tag.Tag(0x0020,0x0032)
+        tag_ImageDirectionCosines = pydicom.tag.Tag(0x0119,0x1030)
+        tag_PixelSpacing          = pydicom.tag.Tag(0x0028,0x0030)
+        tag_Rows                  = pydicom.tag.Tag(0x0028,0x0010)
+        tag_Cols                  = pydicom.tag.Tag(0x0028,0x0011)
+        tag_SliceThickness        = pydicom.tag.Tag(0x0018,0x0050)
+        tag_SpacingBetweenSlices  = pydicom.tag.Tag(0x0018,0x0088)
         
         # TODO: make this cover every case
         # to determine how many slices
-        tag_Planes   = dicom.tag.Tag(0x0028,0x0012)
+        tag_Planes   = pydicom.tag.Tag(0x0028,0x0012)
         Planes       = self._DS[tag_Planes]
         n_slices     = Planes.value
         
