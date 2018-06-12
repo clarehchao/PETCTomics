@@ -5,6 +5,7 @@
 ### Contributors
 - Shih-ying (Clare) Huang, Ph.D.
 - Roy Harnish, MS.
+- Benjamin Franc, M.D., M.S.
 
 ### Software Setup:
 - Python 2.7.11 :: Anaconda custom (64-bit)
