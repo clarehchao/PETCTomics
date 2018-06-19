@@ -10,10 +10,15 @@
 ### Software Setup:
 - Python 2.7.11 :: Anaconda custom (64-bit)
 - ITK 4.10.1 (ImageIO and 3D texture feature calculation)
-- On /data/francgrp1, one would need to run the following to set up the software packages needed for this repository:
+- On Terra server of PRL, use the below anaconda environment to run radiomics-related code
 
 ```
-source .francgrp_cshrc
+source activate py27-pydicom
+```
+
+- For any classification related code using scikit-learn package, run the code with the latest python distribution version 3.5
+```
+source activate py35
 ```
 
 Radiomics Pipeline
