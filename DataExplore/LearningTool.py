@@ -7,7 +7,7 @@ Created on 9/25/17
 @goal: a collection of tools used for training and validating a model and other related tasks
 
 """
-
+from __future__ import division
 import operator
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score, f1_score, auc, roc_curve
@@ -18,6 +18,7 @@ import seaborn as sn
 import matplotlib.pyplot as plt
 import glob
 import json
+
 
 
 def nested_CV(X, y, clf, params_dict, n_fold, n_trials, feat_names, feat_tag, coef_thresh, im_dir, clf_tag, outcome_name, n_Run=0):
@@ -182,5 +183,83 @@ def LoadInputParameter(fname):
     for line in ff:
         thedict = jdec.decode(line)
     return thedict
+
+
+def Feature_Importance(im_dir, the_clf_name, ID_var_name, n_trial, k_fold, outcome_names, coef_thresh=None):
+
+    if the_clf_name == 'ElasticNet':
+        print('Feature importance ElasticNet Way!')
+        # find 'important' features
+        for oc in outcome_names:
+            json_fname = '{}/Learner/{}_IDV{}_DV{}_Trial{}_{}folds.json'.format(im_dir, the_clf_name, ID_var_name, oc,
+                                                                                n_trial,
+                                                                                k_fold)
+            df_learning_output = pd.read_json(json_fname)
+            for ii in df_learning_output.index:
+                feat_imp = np.array(df_learning_output['feat_importance'][ii])
+                feat_names = np.array(df_learning_output['feat_name'][ii])
+
+                # find a list of features that are not dropped by ElasticNet
+                lst_tmp = feat_names[feat_imp != 0.0]
+                if ii == 0:
+                    # initialize the dictionary
+                    dct_feat_tally = {}
+                    for ss in lst_tmp:
+                        dct_feat_tally[ss] = 1
+                else:
+                    for ss in lst_tmp:
+                        if ss in dct_feat_tally.keys():
+                            dct_feat_tally[ss] += 1
+                        else:
+                            dct_feat_tally[ss] = 1
+
+            # sort the feat tally dictionary
+            sorted_dct_feat_tally = sorted(dct_feat_tally.items(), key=operator.itemgetter(1), reverse=True)
+            top10_feat = sorted_dct_feat_tally[0:10]
+
+            max_count = len(df_learning_output)
+            print('outcome: {}\n'.format(oc))
+            for (feat, count) in top10_feat:
+                print('{} ({:.1%})'.format(feat, float(count / max_count)))
+            print('\n')
+            #     print(sorted_dct_feat_tally)
+            #     for k, value in sorted_dct_feat_tally.items():
+            #         print('feat name: {}, count: {}'.format(k, value))
+    elif the_clf_name.find('LogReg') != -1:
+        print('Feature importance Logistic Regression Way!')
+        for oc in outcome_names:
+            json_fname = '{}/Learner/{}_IDV{}_DV{}_Trial{}_{}folds.json'.format(im_dir, the_clf_name, ID_var_name, oc,
+                                                                                n_trial,
+                                                                                k_fold)
+            df_learning_output = pd.read_json(json_fname)
+            for ii in df_learning_output.index:
+                feat_imp = np.array(df_learning_output['feat_importance'][ii])
+                feat_names = np.array(df_learning_output['feat_name'][ii])
+
+                # find a list of features that are not dropped by ElasticNet
+                lst_tmp = feat_names[np.abs(feat_imp) > coef_thresh]
+                if ii == 0:
+                    # initialize the dictionary
+                    dct_feat_tally = {}
+                    for ss in lst_tmp:
+                        dct_feat_tally[ss] = 1
+                else:
+                    for ss in lst_tmp:
+                        if ss in dct_feat_tally.keys():
+                            dct_feat_tally[ss] += 1
+                        else:
+                            dct_feat_tally[ss] = 1
+
+            # sort the feat tally dictionary
+            sorted_dct_feat_tally = sorted(dct_feat_tally.items(), key=operator.itemgetter(1), reverse=True)
+            top10_feat = sorted_dct_feat_tally[0:10]
+
+            max_count = len(df_learning_output)
+            print('outcome: {}\n'.format(oc))
+            for (feat, count) in top10_feat:
+                print('{} ({:.1%})'.format(feat, float(count / max_count)))
+            print('\n')
+
+
 
 

@@ -8,129 +8,12 @@ Created on 6/5/18
 
 """
 
-from bokeh.plotting import figure, show, output_file
+
 import numpy as np
-from bokeh.palettes import Spectral3, Spectral4, Spectral5, Spectral6, Spectral7
-from collections import OrderedDict
 import pandas as pd
 import glob
 import re
-from math import log, sqrt
-from bokeh.io import export_png
-# from bokeh.io import export_svgs
-
-
-
-def rad(mic, a, b):
-    return a * np.sqrt(np.log(mic * 1E4)) + b
-
-def Annular_wedge_plot(df1, df3, filetag):
-    inner_radius = 90
-    outer_radius = 300 - 10
-    minr = sqrt(log(.001 * 1E4))
-    maxr = sqrt(log(100000 * 1E4))
-    a = (outer_radius - inner_radius) / (minr - maxr)
-    b = inner_radius - a * maxr
-
-    width = 800
-    height = 800
-    PLOT_OPTS = dict(
-        plot_width=width, plot_height=height, title="",
-        x_axis_type=None, y_axis_type=None,
-        x_range=(-420, 420), y_range=(-420, 420),
-        min_border=0, outline_line_color="black",
-        background_fill_color="#f0e1d2")
-
-    # the angle for each bacteria type + legend (0.001 to 100)
-    big_angle = 2.0 * np.pi / (len(df3) + 1)
-
-    # why divide by 7? if you look at the figure, in each 'big_angle',
-    # it's divided into 7 space since there are 3 kinds of recurred tumors
-    # can change depending the # of category to plot within each circle
-    N_tumor_type = len(df1['tumor_type'].unique())
-    ndiv_small_angle = N_tumor_type * 2 + 1
-    small_angle = big_angle / ndiv_small_angle
-
-    p = figure(**PLOT_OPTS)
-
-    p.xgrid.grid_line_color = None
-    p.ygrid.grid_line_color = None
-
-
-    N_tumor_type = len(df1.tumor_type.unique().tolist())
-    print(df1.tumor_type.unique().tolist())
-    print('N_tumor_type: {}'.format(N_tumor_type))
-    tp_pal_dict = dict(zip([2, 3, 4, 5, 6, 7], [['#c64737', 'black'], Spectral3, Spectral4, Spectral5, Spectral6, Spectral7]))
-    # print(tp_pal_dict)
-
-    tumor_colors = tp_pal_dict[N_tumor_type]
-    tumor_color_dict = OrderedDict(zip(df1.tumor_type.unique().tolist(), tumor_colors))
-    # print(tumor_color_dict)
-
-    radiomics_colors = ['#deebf7', '#e69584', '#bdbdbd']
-    radiomics_color_dict = OrderedDict(zip(df3.Radiomics_type.unique().tolist(), radiomics_colors))
-    # print(radiomics_color_dict)
-
-    # annular wedges
-    angles = np.pi / 2 - big_angle / 2 - df3.index.to_series() * big_angle
-    colors = [radiomics_color_dict[rt] for rt in df3.Radiomics_type]
-    p.annular_wedge(0, 0, inner_radius, outer_radius, -big_angle + angles, angles, color=colors)
-
-    # small wedges
-    for ii, tt in zip(range(ndiv_small_angle - 1, 1, -2), df1.tumor_type.tolist()):
-        p.annular_wedge(0, 0, inner_radius, rad(df3[tt],a,b),
-                        -big_angle + angles + (ii - 1) * small_angle, -big_angle + angles + ii * small_angle,
-                        color=tumor_color_dict[tt])
-
-    # circular axes and lables
-    labels = np.power(10.0, np.arange(-3, 6))
-    radii = a * np.sqrt(np.log(labels * 1E4)) + b
-    p.circle(0, 0, radius=radii, fill_color=None, line_color="white")
-    p.text(0, radii[:-1], [str(r) for r in labels[:-1]],
-           text_font_size="8pt", text_align="center", text_baseline="middle")
-
-    # radial axes
-    p.annular_wedge(0, 0, inner_radius - 10, outer_radius + 10,
-                    -big_angle + angles, -big_angle + angles, color="black")
-
-    p.circle([-40, -40, -40], [-340, -360, -380], color=list(radiomics_color_dict.values()), radius=5)
-    p.text([-30, -30, -30], [-340, -360, -380], text=radiomics_color_dict.keys(),
-           text_font_size="8pt", text_align="left", text_baseline="middle")
-
-    # tumor type legend
-    rect_xx = [-40] * N_tumor_type
-
-    if N_tumor_type > 5:
-        rect_yy0 = 52
-    elif N_tumor_type > 3:
-        rect_yy0 = 26
-    else:
-        rect_yy0 = 18
-
-    print('N_tumor_type={}, rect_yy0={}'.format(N_tumor_type, rect_yy0))
-    rect_yy = range(rect_yy0, rect_yy0 - (N_tumor_type + 1) * 18, -18)
-
-    txt_xx = [-15] * N_tumor_type
-    txt_yy = rect_yy
-    p.rect(rect_xx, rect_yy, width=30, height=13,
-           color=list(tumor_color_dict.values()))
-    p.text(txt_xx, txt_yy, text=list(tumor_color_dict),
-           text_font_size="9pt", text_align="left", text_baseline="middle")
-
-    show(p)
-
-    # output to .html file
-    htmlfile = '{}.html'.format(filetag)
-    output_file(filename=htmlfile, title="Radiomics_PrimVsRecurTumors_Viz.py")
-
-    # export to .png
-    pngfile = '{}.png'.format(filetag)
-    export_png(p, filename=pngfile)
-
-    # # export to .svg (svg didn't seem to work or save the image correctly..)
-    # p.output_backend = 'svg'
-    # svgfile = '{}.svg'.format(filetag)
-    # export_svgs(p, filename=svgfile)
+import VizPlot as vp
 
 
 if __name__ == '__main__':
@@ -198,18 +81,13 @@ if __name__ == '__main__':
     ptid_sides = list(df_recur_oi.ptid_side.unique())
     # print(ptid_sides)
 
-    for pp in ptid_sides:
-        df1 = df_all[df_all['ptid_side'] == pp]
-        val_vars = set(df1.columns.tolist()).symmetric_difference(['ptid_side', 'tumor_type'])
+    # PLOT THE ANNULAR WEDGE PLOT for all patients
+    vp.Plot_Annular(df_all, ptid_sides, savedir)
 
-        # make an appropriate table
-        df2 = pd.melt(df1, id_vars=['ptid_side', 'tumor_type'], value_vars=val_vars, var_name='Radiomics')
-        df3 = df2.pivot(index='Radiomics', columns='tumor_type', values='value')
-        df3.reset_index(inplace=True)
+    # PLOT THE PEARSON CORRELATION COEFFICIENT PLOT for all patients
+    fname ='{}/Radiomics_primaryVSrecur_PearsonCorr.pdf'.format(savedir)
+    vp.Plot_Radiomics_Corr(df_all, ptid_sides, fig_name=fname)
 
-        # make another column to categorize radiomic feature to FOstats, shape and size and texture
-        df3['Radiomics_type'] = df3['Radiomics'].apply(lambda x: re.split('_+', x)[0] if re.split('_+', x) else np.nan)
 
-        filetag = '{}/Radiomics_primaryVSrecur_{}'.format(savedir,pp)
-        Annular_wedge_plot(df1, df3, filetag=filetag)
+
 

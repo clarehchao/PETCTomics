@@ -11,15 +11,13 @@ Created on 1/30/18
 import pandas as pd
 import numpy as np
 import LearningTool as lt
+import VizPlot as vp
 
 
 feat_name = 'pet_mr_radiomics'
-# feat_name = 'Tumor_Grade'
-# feat_name = 'BC_subtype'
 
 df_yr = range(1,6,1)
-outcome_names = ['DF_{}yr'.format(yy) for yy in df_yr]
-# outcome_names = ['DF_2yr']
+outcome_names = ['Tumor_Grade_Binary'] + ['DF_{}yr'.format(yy) for yy in df_yr]
 
 k_fold = 3
 
@@ -88,9 +86,20 @@ for oc in outcome_names:
         #
         # print('{}, key features: {}'.format(clf_name, list(set(key_feat_list))))
 
+# save all the learning output raw data to .csv
 df_data_all = pd.DataFrame(lst_data_all)
 df_data_all = df_data_all.ix[:, data_col_names]
+
 fname = '{}/CLF_output_all_boostrapCI.csv'.format(data_dir)
 df_data_all.to_csv(fname, index=False)
+
+
+# PLOT learning outcome heatmap
+df_data_all['label'] = df_data_all.apply(lambda row: '{:.2f} ({:.2f}, {:.2f})'.format(row['AUC_hat'], row['CI_lo'], row['CI_hi']), axis=1)
+fname = '{}/CLF_output_all_Heatmap_boostrapCI.pdf'.format(data_dir)
+xlabel = 'Clinical Outcome'
+xticklabel = ['RFS 1-yr', 'RFS 2-yr', 'RFS 3-yr', 'RFS 4-yr', 'RFS 5-y','Tumor Grade']
+vp.Plot_Learning_OutCome_Heatmap(df_data_all, xlabel_name=xlabel, xticklabel_names=xticklabel, fig_name=fname)
+
 
 
