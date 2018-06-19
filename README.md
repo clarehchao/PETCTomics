@@ -17,6 +17,7 @@ source activate py27-pydicom
 ```
 
 - For any classification related code using scikit-learn package, run the code with the latest python distribution version 3.5
+
 ```
 source activate py35
 ```
