@@ -8,7 +8,7 @@
 - Benjamin Franc, M.D., M.S.
 
 ### Software Setup:
-- Python 2.7.11 :: Anaconda custom (64-bit)
+- Python 2.7.14 and Python 3.5.5 (Anaconda custom, 64-bit)
 - ITK 4.10.1 (ImageIO and 3D texture feature calculation)
 - On Terra server of PRL, use the below anaconda environment to run radiomics-related code
 
