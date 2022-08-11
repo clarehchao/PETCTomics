@@ -46,13 +46,19 @@ Radiomics Pipeline
     - cluster the tumors based on its features and determine the optimal setup for consensus clustering
     - create cluster map plots (Radiomics manuscript Figure 1a-4a) 
 - tumor_cluster_outcome_barplot.py: plot proportional table for freq wrt tumor cluster class and freq wrt clinical outcome (Radiomics manuscript Figure 1b - 4b)
-- feature_cluster_analysis.py: univariate feature analysis (Radiomics manuscript Figure 5)
+- multipletestCorr_featurePlot.py
+    - univariate feature analysis (Radiomics manuscript Figure 5)
+    - univariate correlation was computed using R (her2_feature2outcoome_PETMRI_v2.R)
 - notebooks/Radiomics_PET_MR_correlation.ipynb: evaluate the correlation between the PET and MR radiomics
 - GetImageFeatures_PET_RecurredTumors.py: computed radiomics features of the recurrent tumors segmented from the PET images (found 5 - 10 years later than the primary DX)
 - Radiomics_PrimVsRecurTumors.py
     - examine the relationship between the radiomics generated from the primary tumors vs. the recurred tumors
     - generated via bokeh annular_wedge plot (Radiomics manuscript revision figure R1)
     - generated a facet grid line plot via seaborn of the Pearson correlation coeff of PET radiomics between the primary and recurrent tumors (Radiomics manuscript revision figure R2)
+- feature_univariate_analysis_OncotypeDx.py:
+    - evaluate radiomic features' correlation to the outcome, Oncotype Dx score (data from Elissa Price, UCSF)
+    - computed correlation coeff using R (her2_feature2oncotypeDX_PETMRI.R)
+    - plot the heatmap of correlation of radiomic features to Oncotype Dx score
 
 ##### Data-driven Learning
 - classification_cv.py: perform classification tasks via nested cross validation where the inner loop optimizes the classifier's parameters and the outerloop optimize the classifier's performance

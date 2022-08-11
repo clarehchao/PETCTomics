@@ -295,7 +295,7 @@ def clustermap_plot_simple(the_tab, idvar_color_pal_mode, annot=None, fmt='', ro
 
         the_tab2.index = row_vars_new
         the_mask2.index = row_vars_new
-        print(the_tab2)
+        # print(the_tab2)
 
 
         row_labels_unique = list(set(row_labels))
@@ -324,7 +324,7 @@ def clustermap_plot_simple(the_tab, idvar_color_pal_mode, annot=None, fmt='', ro
         df_row_labels_colors = pd.DataFrame(dict(ImageFeature=row_labels_colors))
         df_row_labels_colors.columns = ['']
         row_labels_order = row_labels_order['imf_label'].tolist()
-        print(df_row_labels_colors)
+        # print(df_row_labels_colors)
 
     # hm_cmap = sns.light_palette((210, 90, 60), input="husl", as_cmap=True)
     hm_cmap = sns.cubehelix_palette(8, start=.7, rot=-.9, as_cmap=True)

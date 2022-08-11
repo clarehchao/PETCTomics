@@ -294,12 +294,15 @@ def Median_Cluster_Consensus(the_dir, dir_prefix, the_N_cluster_list=None):
             mc = pd.merge(mc, df_Nmincluster, how='left', on='k')
             df_medCC_all = pd.concat([df_medCC_all, mc], ignore_index=True)
 
+    print(df_medCC_all.columns.tolist())
+
     # print out the cluster setting for each Ncluster with the highest cluster consensus
     if the_N_cluster_list:
         df_tmp = df_medCC_all[(df_medCC_all['N_mincluster'] > 5) & (df_medCC_all['k'].isin(the_N_cluster_list))]
     else:
         df_tmp = df_medCC_all[df_medCC_all['N_mincluster'] > 5]
-    idx = df_tmp.groupby('k').apply(lambda df: df.medianCC.argmax())
+    # idx = df_tmp.groupby('k').apply(lambda df: df.medianCC.argmax())
+    idx = df_tmp.groupby('k').apply(lambda df: df.medianCC.idxmax())
     df_oi = df_tmp.ix[idx,['k','N_mincluster','cluster_method','cluster_linkage','dist_method','medianCC']]
 
     return df_medCC_all, df_oi

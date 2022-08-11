@@ -1,9 +1,0 @@
-.gitignore
-.git/
-.idea/
-.DS_Store/
-rsync_exclude.txt
-Radiomics/*.txt
-requirement.txt
-*.txt
-
